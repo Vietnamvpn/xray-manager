@@ -1,6 +1,5 @@
 #!/bin/bash
-# Module quản lý Node (Inbounds) - Bản hoàn chỉnh chạy thực tế
-# Đảm bảo nguyên tắc Agent độc lập, tự xử lý cấu hình mạng cục bộ trên VPS node.
+# Module quản lý Node (Inbounds) - Bản sửa lỗi khớp cấu trúc templates/
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config.conf"
 source "${SCRIPTS_DIR}/utils.sh"
@@ -36,7 +35,7 @@ apply_config() {
         echo -e "${GREEN}[THÀNH CÔNG] Đồng bộ hoàn tất! Hệ thống mạng hiện đã hoạt động ổn định.${NC}"
         return 0
     else
-        echo -e "${RED}[LỖI] Tiến trình Xray thất bại khi chạy cấu hình mới. Vui lòng kiểm tra log hệ thống bằng lệnh 'journalctl -u xray'.${NC}"
+        echo -e "${RED}[LỖI] Tiến trình Xray thất bại khi chạy cấu hình mới. Vui lòng kiểm tra lại.${NC}"
         return 1
     fi
 }
@@ -55,7 +54,7 @@ show_node_menu() {
 }
 
 # =================================================================
-# XỬ LÝ CHỨC NĂNG 1: XEM DANH SÁCH NODE (PARSE TABLE)
+# XỬ LÝ CHỨC NĂNG 1: XEM DANH SÁCH NODE
 # =================================================================
 list_nodes() {
     clear
@@ -64,12 +63,11 @@ list_nodes() {
     printf "%-15s | %-10s | %-12s | %-15s\n" "TAG (ĐỊNH DANH)" "CỔNG PORT" "GIAO THỨC" "MẠNG TRUYỀN TẢI"
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     
-    # Kiểm tra xem cơ sở dữ liệu mảng có rỗng hay không
     if [ "$(jq '. | length' "$NODE_DB")" -eq 0 ]; then
         echo -e "          (Hiện tại hệ thống Agent chưa khởi tạo Node mạng nào)"
     else
-        # Đọc dữ liệu JSON, phân tách các trường để hiển thị dạng bảng scannable rõ ràng
-        jq -r '.[] | "\(.tag) \(.port) \(.protocol) \(.streamSettings.network // "tcp")"' "$NODE_DB" | while read -r tag port proto net; do
+        # Đọc dữ liệu JSON, phân tách các trường để hiển thị. Nếu không có streamSettings (như hy2) thì để mặc định là udp
+        jq -r '.[] | "\(.tag) \(.port) \(.protocol) \(.streamSettings.network // "udp")"' "$NODE_DB" | while read -r tag port proto net; do
             printf "%-15s | %-10s | %-12s | %-15s\n" "$tag" "$port" "$proto" "$net"
         done
     fi
@@ -79,55 +77,82 @@ list_nodes() {
 }
 
 # =================================================================
-# XỬ LÝ CHỨC NĂNG 2: THÊM NODE (BƠM DATA JSON & RESTART NETWORK)
+# XỬ LÝ CHỨC NĂNG 2: THÊM NODE (ĐÃ FIX KHỚP CẤU TRÚC THƯ MỤC)
 # =================================================================
 add_node() {
     clear
     echo -e "${GREEN}--- Tạo Thiết Lập Node Mới (Inbound) ---${NC}"
     
-    # 1. Thu thập dữ liệu cấu hình đầu vào từ người quản trị
+    # 1. Nhập giao thức mạng trước
     read -p "Nhập giao thức mạng (vless / vmess / trojan / hy2): " protocol
-    read -p "Nhập Transport truyền tải (ws / tcp / grpc): " transport
-    read -p "Nhập cổng kết nối Port (Ví dụ: 443, 8443): " port
-    read -p "Nhập chuỗi Tag định danh (Phải là duy nhất, Ví dụ: vless-ws-in): " tag
+    protocol=$(echo "$protocol" | tr '[:upper:]' '[:lower:]') # Chuyển về chữ thường để tránh lỗi gõ hoa
     
-    # Kiểm tra chặn lỗi để trống thông tin
-    if [ -z "$protocol" ] || [ -z "$transport" ] || [ -z "$port" ] || [ -z "$tag" ]; then
-        echo -e "${RED}[LỖI] Bạn không được bỏ trống bất kỳ trường thông tin thiết lập nào!${NC}"
+    local tpl_file=""
+    
+    # 2. Kiểm tra cấu trúc rẽ nhánh dựa theo file mẫu của bạn
+    if [ "$protocol" = "hy2" ]; then
+        # Hysteria 2 lấy trực tiếp file hy2.json ở thư mục gốc templates
+        tpl_file="${TEMPLATES_DIR}/hy2.json"
+    elif [ "$protocol" = "vless" ] || [ "$protocol" = "vmess" ] || [ "$protocol" = "trojan" ]; then
+        # Hiển thị gợi ý transport dựa theo đúng các file bạn đang có trong thư mục
+        if [ "$protocol" = "vless" ]; then
+            echo -e "Các transport khả dụng trong templates/vless/: ${CYAN}ws, xhttp, grpc${NC}"
+        elif [ "$protocol" = "vmess" ]; then
+            echo -e "Các transport khả dụng trong templates/vmess/: ${CYAN}ws, tcp${NC}"
+        elif [ "$protocol" = "trojan" ]; then
+            echo -e "Các transport khả dụng trong templates/trojan/: ${CYAN}ws, tcp${NC}"
+        fi
+        
+        read -p "Nhập Transport truyền tải: " transport
+        transport=$(echo "$transport" | tr '[:upper:]' '[:lower:]')
+        
+        # Đường dẫn đến thư mục con tương ứng
+        tpl_file="${TEMPLATES_DIR}/${protocol}/${transport}.json"
+    else
+        echo -e "${RED}[LỖI] Giao thức '$protocol' không nằm trong danh sách hỗ trợ!${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
         return
     fi
-
-    # Kiểm tra chặn trùng lặp trường dữ liệu duy nhất (Tag) trong DB
-    if jq -e --arg t "$tag" '.[] | select(.tag == $t)' "$NODE_DB" >/dev/null; then
-        echo -e "${RED}[LỖI] Chuỗi định danh Tag '$tag' đã tồn tại. Hãy đặt tên khác để phân biệt!${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
-        return
-    fi
-
-    # Định vị file cấu hình thô theo cấu trúc thư mục phân cấp
-    local tpl_file="${TEMPLATES_DIR}/${protocol}/${transport}.json"
     
+    # Kiểm tra xem file template cấu hình có tồn tại thực tế hay không
     if [ ! -f "$tpl_file" ]; then
         echo -e "${RED}[LỖI] Không tồn tại file cấu hình mẫu tại: $tpl_file${NC}"
+        echo -e "${YELLOW}Vui lòng kiểm tra lại kho file trong thư mục templates/.${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+        return
+    fi
+
+    # 3. Thu thập nốt các thông tin vận hành
+    read -p "Nhập cổng kết nối Port (Ví dụ: 443, 8443): " port
+    read -p "Nhập chuỗi Tag định danh (Phải là duy nhất, Ví dụ: node-hy2-443): " tag
+    
+    if [ -z "$port" ] || [ -z "$tag" ]; then
+        echo -e "${RED}[LỖI] Bạn không được bỏ trống Port hoặc Tag định danh!${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+        return
+    fi
+
+    # Kiểm tra trùng lặp Tag trong DB cục bộ
+    if jq -e --arg t "$tag" '.[] | select(.tag == $t)' "$NODE_DB" >/dev/null; then
+        echo -e "${RED}[LỖI] Chuỗi định danh Tag '$tag' đã tồn tại trên VPS này. Hãy chọn tên khác!${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
         return
     fi
     
-    # 2. Xử lý logic JSON: Bơm Port (ép kiểu thành số nguyên) và Tag định danh vào file tạm
+    # 4. Xử lý logic JSON: Bơm Port (ép kiểu thành số) và Tag định danh vào file tạm
     if ! jq --arg p "$port" --arg t "$tag" '.port = ($p|tonumber) | .tag = $t' "$tpl_file" > /tmp/new_node.json; then
-        echo -e "${RED}[LỖI] Thao tác xử lý dữ liệu JSON thất bại. Định dạng file mẫu có thể sai cú pháp.${NC}"
+        echo -e "${RED}[LỖI] Thao tác xử lý dữ liệu JSON thất bại. File mẫu cấu hình có thể bị sai cú pháp.${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
         return
     fi
     
-    # 3. Đẩy node vừa tạo vào mảng lưu trữ database cục bộ của Agent
+    # 5. Đẩy dữ liệu vào DB nodes.json cục bộ
     jq --slurpfile new_node /tmp/new_node.json '. += $new_node' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     rm -f /tmp/new_node.json
     
     echo -e "${GREEN}Đã ghi nhận cấu hình Node mới vào Database Agent cục bộ.${NC}"
     
-    # 4. Áp dụng đồng bộ trực tiếp ra hệ thống mạng thực tế
+    # 6. Biên dịch lại cấu hình tổng và khởi chạy mạng thực tế
     apply_config
     
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
@@ -140,7 +165,6 @@ delete_node() {
     clear
     echo -e "${RED}--- Gỡ Bỏ Cấu Hình Node Hệ Thống ---${NC}"
     
-    # Kiểm tra nếu DB trống thì không cần xử lý tiếp
     if [ "$(jq '. | length' "$NODE_DB")" -eq 0 ]; then
         echo -e "${YELLOW}Hệ thống đang trống, không có Node nào khả dụng để tiến hành xóa.${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
@@ -166,7 +190,7 @@ delete_node() {
     jq --arg t "$tag" 'del(.[] | select(.tag == $t))' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     echo -e "${GREEN}Đã xóa thực thể Node '$tag' khỏi Database Agent cục bộ.${NC}"
     
-    # Cập nhật và khởi chạy lại mạng để áp dụng thay đổi
+    # Cập nhật lại cấu hình lõi mạng
     apply_config
     
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
