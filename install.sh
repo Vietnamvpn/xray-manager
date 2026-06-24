@@ -1,6 +1,57 @@
 #!/bin/bash
 # Script cài đặt Xray-core và khởi tạo môi trường
+# bash <(curl -Ls https://raw.githubusercontent.com/Vietnamvpn/xray-manager/main/install.sh)
 
+# =================================================================
+# TRÌNH KÍCH HOẠT TẢI TỪ XA QUA URL (KHÔNG SỬA ĐOẠN NÀY)
+# =================================================================
+INSTALL_DIR="/etc/xray-manager"
+REPO_URL="https://github.com/Vietnamvpn/xray-manager.git"
+
+if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
+    echo "=== Khởi tạo môi trường và tải mã nguồn từ GitHub ==="
+    
+    # Kiểm tra quyền root trước khi cài gói phụ thuộc hệ thống
+    if [ "$EUID" -ne 0 ]; then
+        echo "Lỗi: Vui lòng chạy lệnh bằng quyền root (sudo su)."
+        exit 1
+    fi
+
+    # Cài đặt git và curl để chuẩn bị kéo mã nguồn
+    if [ -f /etc/debian_version ]; then
+        apt-get update -y && apt-get install git curl -y
+    elif [ -f /etc/redhat-release ]; then
+        yum install git curl -y
+    fi
+    
+    # Tiến hành clone hoặc cập nhật repo
+    if [ -d "$INSTALL_DIR" ]; then
+        cd "$INSTALL_DIR" && git reset --hard HEAD && git pull
+    else
+        git clone "$REPO_URL" "$INSTALL_DIR"
+    fi
+    
+    # Tạo thư mục lưu data gốc nếu chưa có
+    mkdir -p "$INSTALL_DIR/data"
+    [ -f "$INSTALL_DIR/data/users.json" ] || echo "[]" > "$INSTALL_DIR/data/users.json"
+    [ -f "$INSTALL_DIR/data/nodes.json" ] || echo "[]" > "$INSTALL_DIR/data/nodes.json"
+    [ -f "$INSTALL_DIR/data/system.log" ] || touch "$INSTALL_DIR/data/system.log"
+
+    # Phân quyền thực thi và tạo phím tắt lệnh nhanh
+    chmod +x "$INSTALL_DIR/main.sh"
+    chmod +x "$INSTALL_DIR/install.sh"
+    chmod +x "$INSTALL_DIR/scripts/"*.sh
+    ln -sf "$INSTALL_DIR/main.sh" /usr/local/bin/xray-manager
+    ln -sf "$INSTALL_DIR/main.sh" /usr/local/bin/xray
+    
+    # Chuyển tiếp thực thi sang file install.sh vừa tải về để chạy code gốc bên dưới
+    cd "$INSTALL_DIR"
+    exec bash "$INSTALL_DIR/install.sh" "$@"
+    exit 0
+fi
+# =================================================================
+
+# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURRENT_DIR}/config.conf"
 source "${SCRIPTS_DIR}/utils.sh"
