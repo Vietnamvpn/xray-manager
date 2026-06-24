@@ -1,5 +1,6 @@
 #!/bin/bash
 # Script cài đặt Xray-core và khởi tạo môi trường
+# bash <(curl -Ls https://raw.githubusercontent.com/Vietnamvpn/xray-manager/main/install.sh)
 
 # =================================================================
 # TRÌNH KÍCH HOẠT TẢI TỪ XA QUA URL (KHÔNG SỬA ĐOẠN NÀY)
@@ -36,12 +37,10 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     [ -f "$INSTALL_DIR/data/nodes.json" ] || echo "[]" > "$INSTALL_DIR/data/nodes.json"
     [ -f "$INSTALL_DIR/data/system.log" ] || touch "$INSTALL_DIR/data/system.log"
 
-    # Phân quyền thực thi và tạo phím tắt lệnh nhanh
+    # Phân quyền thực thi
     chmod +x "$INSTALL_DIR/main.sh"
     chmod +x "$INSTALL_DIR/install.sh"
     chmod +x "$INSTALL_DIR/scripts/"*.sh
-    ln -sf "$INSTALL_DIR/main.sh" /usr/local/bin/xray-manager
-    ln -sf "$INSTALL_DIR/main.sh" /usr/local/bin/xray
     
     # Chuyển tiếp thực thi sang file install.sh vừa tải về để chạy code gốc bên dưới
     cd "$INSTALL_DIR"
@@ -75,5 +74,8 @@ cp "${TEMPLATES_DIR}/xray.service" /etc/systemd/system/xray.service
 systemctl daemon-reload
 systemctl enable xray
 systemctl restart xray
+
+# Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý (Tránh trùng với binary xray)
+ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/xray-manager
 
 log_info "Cài đặt Xray-core hoàn tất. Tiến trình đang chạy."
