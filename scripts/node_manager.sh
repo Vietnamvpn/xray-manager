@@ -154,7 +154,7 @@ add_node() {
             port="$input_port"
             if jq -e --argjson p "$port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null; then
                 echo -e "${RED}[LỖI] Cổng kết nối Port $port đã tồn tại trong DB hệ thống! Hãy cấu hình lại.${NC}"
-                sleep 2; continue
+                sleep 5; continue
             fi
         fi
 
