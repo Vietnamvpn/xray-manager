@@ -1,5 +1,7 @@
 #!/bin/bash
 # Main execution entry menu for xray-manager
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$CURRENT_DIR"
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
