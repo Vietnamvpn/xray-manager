@@ -49,7 +49,7 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
 fi
 # =================================================================
 
-# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY
+# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY (ĐÃ BỔ SUNG KIỂM TRA LỖI)
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURRENT_DIR}/config.conf"
 source "${SCRIPTS_DIR}/utils.sh"
@@ -62,20 +62,31 @@ log_info "Bắt đầu cài đặt Xray-core..."
 apt-get update -y
 apt-get install -y curl wget unzip jq uuid-runtime
 
-# Tải và cài đặt Xray-core thông qua script chính thức
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+# Tải và cài đặt Xray-core thông qua script chính thức (Kiểm tra lỗi tải/cài đặt)
+if ! bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install; then
+    log_info "[LỖI] Quá trình cài đặt lõi Xray-core thất bại. Vui lòng kiểm tra lại kết nối mạng hệ thống."
+    exit 1
+fi
 
 # Thiết lập thư mục cấu hình
-mkdir -p "${XRAY_CONFIG_DIR}"
-cp "${TEMPLATES_DIR}/base.json" "${XRAY_CONFIG_DIR}/config.json"
+mkdir -p "${XRAY_CONFIG_DIR}" || { log_info "[LỖI] Không thể tạo thư mục cấu hình ${XRAY_CONFIG_DIR}"; exit 1; }
+cp "${TEMPLATES_DIR}/base.json" "${XRAY_CONFIG_DIR}/config.json" || { log_info "[LỖI] Không tìm thấy hoặc không thể sao chép file base.json"; exit 1; }
 
 # Thiết lập systemd service
-cp "${TEMPLATES_DIR}/xray.service" /etc/systemd/system/xray.service
-systemctl daemon-reload
-systemctl enable xray
-systemctl restart xray
+if [ -f "${TEMPLATES_DIR}/xray.service" ]; then
+    cp "${TEMPLATES_DIR}/xray.service" /etc/systemd/system/xray.service
+    systemctl daemon-reload
+    systemctl enable xray
+    if ! systemctl restart xray; then
+        log_info "[LỖI] Không thể khởi động dịch vụ Xray hệ thống."
+        exit 1
+    fi
+else
+    log_info "[LỖI] Không tìm thấy tệp mẫu xray.service tại đường dẫn templates/."
+    exit 1
+fi
 
-# Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý (Tránh trùng với binary xray)
+# Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý (Chỉ tạo khi mọi bước trên đã xong)
 ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/xray-manager
 
 log_info "Cài đặt Xray-core hoàn tất. Tiến trình đang chạy."
