@@ -49,7 +49,7 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
 fi
 # =================================================================
 
-# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY (ĐÃ BỔ SUNG KIỂM TRA LỖI)
+# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY (ĐÃ SỬA LỖI NHẬN NHẦM FILE)
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURRENT_DIR}/config.conf"
 source "${SCRIPTS_DIR}/utils.sh"
@@ -61,6 +61,11 @@ log_info "Bắt đầu cài đặt Xray-core..."
 # Cài đặt các gói phụ thuộc
 apt-get update -y
 apt-get install -y curl wget unzip jq uuid-runtime
+
+# XÓA BỎ FILE PHÍM TẮT LỖI CŨ (Để tránh script XTLS nhận diện nhầm file main.sh thành lõi xray)
+if [ -L /usr/local/bin/xray ] || [ -f /usr/local/bin/xray ]; then
+    rm -f /usr/local/bin/xray
+fi
 
 # Tải và cài đặt Xray-core thông qua script chính thức (Kiểm tra lỗi tải/cài đặt)
 if ! bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install; then
