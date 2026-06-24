@@ -1,0 +1,16 @@
+{
+  "port": 443,
+  "protocol": "vless",
+  "settings": {
+    "clients": [],
+    "decryption": "none"
+  },
+  "streamSettings": {
+    "network": "ws",
+    "security": "tls",
+    "wsSettings": {
+      "path": "/vless-ws"
+    }
+  },
+  "tag": "vless-ws"
+}

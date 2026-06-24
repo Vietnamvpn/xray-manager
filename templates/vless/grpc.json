@@ -1,0 +1,16 @@
+{
+  "port": 443,
+  "protocol": "vless",
+  "settings": {
+    "clients": [],
+    "decryption": "none"
+  },
+  "streamSettings": {
+    "network": "grpc",
+    "security": "tls",
+    "grpcSettings": {
+      "serviceName": "vless-grpc"
+    }
+  },
+  "tag": "vless-grpc"
+}

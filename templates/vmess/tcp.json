@@ -1,0 +1,12 @@
+{
+  "port": 443,
+  "protocol": "vmess",
+  "settings": {
+    "clients": []
+  },
+  "streamSettings": {
+    "network": "tcp",
+    "security": "tls"
+  },
+  "tag": "vmess-tcp"
+}

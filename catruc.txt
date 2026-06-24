@@ -1,0 +1,33 @@
+xray-manager/
+├── install.sh                  # [ENTRY] Script cài đặt: Check OS, cài Xray-core, khởi tạo môi trường.
+├── main.sh                     # [MENU] Script điều khiển chính: Vòng lặp menu, gọi các module con.
+├── config.conf                 # [ENV] File lưu cấu hình tĩnh: URL, API KEY, PORT, ENV variables.
+│
+├── scripts/                    # [LOGIC] Thư mục chứa các module xử lý nghiệp vụ.
+│   ├── utils.sh                # [HELPER] Thư viện hàm dùng chung: color, check_root, log, exit.
+│   ├── user_manager.sh         # [USER] Thao tác: Thêm, xóa, khóa, mở user, tính dung lượng.
+│   ├── node_manager.sh         # [NODE] Thao tác: Tạo/Xóa/Sửa node (Port, Domain, SNI).
+│   ├── ssl_manager.sh          # [SSL] Tích hợp ACME/Cloudflare, cấp và gia hạn chứng chỉ.
+│   ├── api_sync.sh             # [SYNC] Module kết nối, đẩy/kéo dữ liệu từ web trung tâm.
+│   └── update.sh               # [GIT] Module cập nhật mã nguồn (git pull) từ repo.
+│
+├── templates/                  # [TEMPLATE] Thư mục chứa các mẫu cấu hình JSON và hệ thống.
+│   ├── base.json               # [BASE] Mẫu cấu hình gốc của Xray (chứa log, routing, dns, outbounds cố định).
+│   ├── xray.service            # [SERVICE] Mẫu cấu hình dịch vụ Systemd để quản lý tiến trình chạy ngầm.
+│   │
+│   ├── vless/                  # [VLESS] Cấu hình cho VLESS.
+│   │   ├── ws.json             # Mẫu VLESS + WebSocket.
+│   │   ├── xhttp.json          # Mẫu VLESS + XHTTP.
+│   │   └── grpc.json           # Mẫu VLESS + gRPC.
+│   ├── vmess/                  # [VMESS] Cấu hình cho VMESS.
+│   │   ├── ws.json             # Mẫu VMESS + WebSocket.
+│   │   └── tcp.json            # Mẫu VMESS + TCP.
+│   ├── trojan/                 # [TROJAN] Cấu hình cho Trojan.
+│   │   ├── ws.json             # Mẫu Trojan + WebSocket.
+│   │   └── tcp.json            # Mẫu Trojan + TCP.
+│   └── hy2.json                # [HY2] Mẫu cấu hình Hysteria 2.
+│
+└── data/                       # [DATA] Thư mục lưu trữ dữ liệu vận hành thực tế.
+    ├── users.json              # [DB USER] Lưu danh sách tài khoản, limit, trạng thái.
+    ├── nodes.json              # [DB NODE] Lưu thông tin các inbound, port, path đang dùng.
+    └── system.log              # [LOG] File ghi chép nhật ký hoạt động hệ thống.
