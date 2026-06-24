@@ -1,9 +1,9 @@
 #!/bin/bash
 # Main execution entry menu for xray-manager
-CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$CURRENT_DIR"
 
-CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SỬA LỖI: Xác định chính xác thư mục gốc kể cả khi chạy qua liên kết biểu tượng (Symlink)
+CURRENT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+cd "$CURRENT_DIR"
 
 if [ -f "${CURRENT_DIR}/config.conf" ]; then
     source "${CURRENT_DIR}/config.conf"
