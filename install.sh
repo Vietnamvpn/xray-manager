@@ -1,6 +1,5 @@
 #!/bin/bash
 # Script cài đặt Xray-core và khởi tạo môi trường
-# bash <(curl -Ls https://raw.githubusercontent.com/Vietnamvpn/xray-manager/main/install.sh)
 
 # =================================================================
 # TRÌNH KÍCH HOẠT TẢI TỪ XA QUA URL (KHÔNG SỬA ĐOẠN NÀY)
@@ -65,7 +64,7 @@ apt-get update -y
 apt-get install -y curl wget unzip jq uuid-runtime
 
 # Tải và cài đặt Xray-core thông qua script chính thức
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version latest
+bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
 # Thiết lập thư mục cấu hình
 mkdir -p "${XRAY_CONFIG_DIR}"
