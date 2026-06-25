@@ -1,16 +1,19 @@
 {
   "port": 443,
-  "protocol": "hysteria2",
+  "protocol": "hysteria",
   "settings": {
-    "users": [],
-    "upMbps": 1000,
-    "downMbps": 1000,
-    "obfs": {
-      "type": "salamander",
-      "password": "THAY_BANG_MAT_KHAU_OBFS"
-    }
+    "version": 2,
+    "clients": [
+      {
+        "auth": "THAY_BANG_AUTH_KEY"
+      }
+    ]
   },
   "streamSettings": {
+    "network": "hysteria",
+    "hysteriaSettings": {
+      "version": 2
+    },
     "security": "tls",
     "tlsSettings": {
       "serverName": "www.cloudflare.com",
@@ -21,6 +24,16 @@
         {
           "certificateFile": "CERT_PATH_PLACEHOLDER",
           "keyFile": "KEY_PATH_PLACEHOLDER"
+        }
+      ]
+    },
+    "finalmask": {
+      "udp": [
+        {
+          "type": "salamander",
+          "settings": {
+            "password": "THAY_BANG_MAT_KHAU_OBFS"
+          }
         }
       ]
     }
