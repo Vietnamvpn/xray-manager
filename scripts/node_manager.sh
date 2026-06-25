@@ -75,6 +75,7 @@ show_node_menu() {
     echo -e "${BLUE}=======================================${NC}"
     echo -e "1. Thêm Node (Hỗ trợ theo lô - Batching)"
     echo -e "2. Xóa Node khỏi hệ thống"
+    echo -e "3. Cập nhật thông tin Node"
     echo -e "0. Quay lại Menu chính"
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn của bạn: "
@@ -90,7 +91,8 @@ add_node() {
     while true; do
         clear
         echo -e "${GREEN}--- THÊM NODE MẠNG MỚI ---${NC}"
-        echo -e "1. vless   2. vmess   3. trojan   4. hy2"
+        echo -e "1. vless  | 2. vmess"
+        echo -e "3. trojan | 4. hy2"   
         read -p "Chọn giao thức (1-4): " proto_choice
         
         local protocol=""
@@ -295,6 +297,79 @@ add_node() {
     read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại menu..."
 }
 
+update_node() {
+    clear
+    echo -e "${YELLOW}--- CẬP NHẬT NODE ---${NC}"
+    read -p "Nhập Port của Node muốn cập nhật: " target_port
+
+    # Kiểm tra node có tồn tại không
+    local node_exists=$(jq -e --argjson p "$target_port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+    
+    if [ "$node_exists" == "no" ]; then
+        echo -e "${RED}[LỖI] Không tìm thấy Node có Port $target_port${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+        return
+    fi
+
+    # Lấy thông tin hiện tại để hiển thị làm gợi ý
+    local current_node=$(jq -c --argjson p "$target_port" '.[] | select(.port == $p)' "$NODE_DB")
+    local old_domain=$(echo "$current_node" | jq -r '.domain')
+    local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
+
+    echo -e "${BLUE}Đang cập nhật Node Port: $target_port${NC}"
+    echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
+
+    # Nhập thông tin mới
+    read -p "Nhập Domain mới (Cũ: $old_domain): " new_domain
+    read -p "Nhập Port mới (Cũ: $target_port): " new_port
+    read -p "Nhập SNI mới (Cũ: $old_sni): " new_sni
+
+    # Xử lý logic gán giá trị
+    local final_domain="${new_domain:-$old_domain}"
+    local final_port="${new_port:-$target_port}"
+    local final_sni="${new_sni:-$old_sni}"
+
+    # Kiểm tra trùng port nếu có thay đổi
+    if [ "$final_port" != "$target_port" ]; then
+        local dup_db=$(jq -e --argjson p "$final_port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+        if [ "$dup_db" == "yes" ]; then
+            echo -e "${RED}[LỖI] Port $final_port đã có Node khác sử dụng!${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+            return
+        fi
+    fi
+
+    # Thực hiện Update JSON
+    if jq --argjson p "$target_port" \
+          --argjson np "$final_port" \
+          --arg d "$final_domain" \
+          --arg s "$final_sni" '
+        map(if .port == $p then
+            .domain = $d |
+            .port = $np |
+            # Cập nhật Tag mới cho đồng bộ với port
+            .tag = (.protocol + "-" + ($np|tostring)) |
+            # Cập nhật SNI cho TLS
+            (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
+            # Cập nhật SNI cho Reality (dest, serverName, serverNames)
+            (if .streamSettings.realitySettings then 
+                .streamSettings.realitySettings.dest = ($s + ":443") |
+                .streamSettings.realitySettings.serverName = $s |
+                .streamSettings.realitySettings.serverNames = [$s] 
+             else . end)
+        else . end)
+    ' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"; then
+        echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật Node $target_port -> $final_port${NC}"
+    else
+        echo -e "${RED}[LỖI] Cập nhật file JSON thất bại.${NC}"
+        rm -f "${NODE_DB}.tmp"
+        return
+    fi
+
+    apply_config
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
 delete_node() {
     clear
     echo -e "${RED}--- GỠ BỎ CẤU HÌNH NODE ---${NC}"
@@ -313,6 +388,7 @@ while true; do
     case $choice in
         1) add_node ;;
         2) delete_node ;;
+        3) update_node ;;
         0) break ;;
         *) echo -e "${RED}Lựa chọn không hợp lệ!${NC}" ; sleep 1 ;;
     esac
