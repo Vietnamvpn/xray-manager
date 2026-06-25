@@ -238,9 +238,9 @@ add_node() {
             .streamSettings.realitySettings.serverNames = [$sni] | 
             (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
          else . end) |
-        (if (.protocol == "hysteria2" or .protocol == "hy2") and .settings.obfs then
-            .settings.obfs.password = $obfs
-         else . end)
+        (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .settings.obfs then
+    .settings.obfs.password = $obfs
+ else . end)
     ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
         echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
         sleep 3
