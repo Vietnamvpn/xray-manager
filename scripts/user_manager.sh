@@ -142,7 +142,7 @@ list_users() {
                             local b64=$(echo -n "$vmess_json" | base64 -w 0)
                             link="vmess://${b64}"
                             ;;
-                        hy2|hysteria2)
+                        hy2|hysteria2|hysteria)
                             link="hysteria2://${user_cred}@${domain}:${port}/?sni=${sni}&insecure=1#${tag}"
                             ;;
                     esac
