@@ -262,6 +262,27 @@ add_node() {
         return
     else
         mv "${NODE_DB}.tmp" "$NODE_DB"
+        
+        # =================================================================
+        # THÊM ĐOẠN NÀY ĐỂ ĐỒNG BỘ SANG DATA USER
+        # =================================================================
+        USER_DB="${INSTALL_DIR}/data/users.json"
+        
+        # Tạo file users.json nếu chưa tồn tại
+        if [ ! -f "$USER_DB" ] || [ ! -s "$USER_DB" ]; then
+            echo "[]" > "$USER_DB"
+        fi
+        
+        # Kiểm tra xem user đã có trong users.json chưa, nếu chưa thì thêm vào
+        local user_exists=$(jq -e --arg e "$username" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+        
+        if [ "$user_exists" == "no" ]; then
+            jq --arg email "$username" --arg uuid "$user_cred" --arg quota "0" \
+               '. += [{"email": $email, "uuid": $uuid, "quota_gb": $quota, "status": "active"}]' \
+               "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+            echo -e "${BLUE}-> Đã đồng bộ User '$username' sang Cơ sở dữ liệu User.${NC}"
+        fi
+        # =================================================================
     fi
     
     rm -f /tmp/session_nodes.json /tmp/single_node.json /tmp/session_nodes_final.json
