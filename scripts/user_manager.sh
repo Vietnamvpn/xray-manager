@@ -18,6 +18,7 @@ show_user_menu() {
     echo -e "1. Xem danh sách Users & Link Node"
     echo -e "2. Thêm User mới"
     echo -e "3. Xóa User"
+    echo -e "4. Tắt/Mở mạng User"
     echo -e "0. Quay lại Menu chính"
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn: "
@@ -299,6 +300,66 @@ delete_user() {
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
+toggle_user_status() {
+    echo -e "\n${YELLOW}--- TẮT/MỞ MẠNG USER ---${NC}"
+    echo -n "Nhập Email/Tên User: "
+    read email
+    
+    # 1. Kiểm tra user có tồn tại không
+    if ! jq -e --arg e "$email" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1; then
+        echo -e "${RED}[LỖI] User '$email' không tồn tại!${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+        return
+    fi
+
+    # 2. Lấy thông tin trạng thái và UUID của user
+    local status=$(jq -r --arg e "$email" '.[] | select(.email == $e) | .status' "$USER_DB")
+    local uuid=$(jq -r --arg e "$email" '.[] | select(.email == $e) | .uuid' "$USER_DB")
+
+    if [ "$status" == "active" ]; then
+        # HÀNH ĐỘNG: TẮT MẠNG (Xóa khỏi nodes.json)
+        echo -e "${YELLOW}Đang tắt mạng cho user: $email...${NC}"
+        
+        # Cập nhật status trong users.json
+        jq --arg e "$email" 'map(if .email == $e then .status = "disabled" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+        
+        # Xóa khỏi nodes.json
+        jq --arg e "$email" '
+            map(
+                if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
+                    .settings.clients |= map(select(.email != $e))
+                elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                    .settings.users |= map(select(.email != $e))
+                else . end
+            )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+            
+        log_info "Đã tắt mạng user: $email."
+
+    else
+        # HÀNH ĐỘNG: MỞ MẠNG (Thêm vào tất cả nodes.json)
+        echo -e "${GREEN}Đang mở mạng cho user: $email...${NC}"
+        
+        # Cập nhật status trong users.json
+        jq --arg e "$email" 'map(if .email == $e then .status = "active" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+        
+        # Thêm vào tất cả nodes.json
+        jq --arg e "$email" --arg u "$uuid" '
+            map(
+                if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
+                elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
+                elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
+                else . end
+            )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+            
+        log_info "Đã mở mạng user: $email."
+    fi
+
+    # 3. Áp dụng thay đổi
+    apply_config
+    
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
 while true; do
     show_user_menu
     read -r choice
@@ -306,6 +367,7 @@ while true; do
         1) list_users ;;
         2) add_user ;;
         3) delete_user ;;
+        4) toggle_user_status ;;
         0) break ;;
         *) log_error "Lựa chọn không hợp lệ!" ; sleep 1 ;;
     esac
