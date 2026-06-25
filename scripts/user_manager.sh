@@ -78,13 +78,19 @@ list_users() {
                     local host=""
                     
                     # Đọc thông số TLS hoặc Reality
+                    local sid=""
+                    local fp="chrome"
+                    
                     if [ "$(echo "$node_row" | jq -e '.streamSettings.security == "reality" or .streamSettings.realitySettings != null' 2>/dev/null)" == "true" ]; then
                         tls_type="reality"
                         sni=$(echo "$node_row" | jq -r '.streamSettings.realitySettings.serverName // ""')
                         pbk=$(echo "$node_row" | jq -r '.publicKey // .streamSettings.realitySettings.publicKey // ""')
+                        sid=$(echo "$node_row" | jq -r '.streamSettings.realitySettings.shortIds[0] // ""')
+                        fp=$(echo "$node_row" | jq -r '.streamSettings.realitySettings.fingerprint // "chrome"')
                     elif [ "$(echo "$node_row" | jq -e '.streamSettings.security == "tls" or .streamSettings.tlsSettings != null' 2>/dev/null)" == "true" ]; then
                         tls_type="tls"
                         sni=$(echo "$node_row" | jq -r '.streamSettings.tlsSettings.serverName // ""')
+                        fp=$(echo "$node_row" | jq -r '.streamSettings.tlsSettings.fingerprint // "chrome"')
                     fi
                     
                     # Đọc thông số Transport (WebSocket, gRPC, v.v.)
@@ -95,16 +101,39 @@ list_users() {
                         path=$(echo "$node_row" | jq -r '.streamSettings.grpcSettings.serviceName // ""')
                     fi
                     
-                    # Ghép chuỗi URI dựa trên Protocol
+                    # Ghép chuỗi URI dựa trên Protocol chuẩn Xray Client
                     local link=""
                     case $protocol in
                         vless|trojan)
                             link="${protocol}://${user_cred}@${domain}:${port}?type=${net}"
+                            
+                            # [QUAN TRỌNG] VLESS bắt buộc phải khai báo encryption=none
+                            if [ "$protocol" == "vless" ]; then
+                                link="${link}&encryption=none"
+                            fi
+                            
                             [ -n "$tls_type" ] && link="${link}&security=${tls_type}"
                             [ -n "$sni" ] && link="${link}&sni=${sni}"
-                            [ -n "$pbk" ] && link="${link}&pbk=${pbk}"
-                            [ -n "$path" ] && link="${link}&path=${path}"
+                            
+                            # Xử lý tham số Reality / TLS
+                            if [ "$tls_type" == "reality" ]; then
+                                [ -n "$pbk" ] && [ "$pbk" != "null" ] && link="${link}&pbk=${pbk}"
+                                [ -n "$sid" ] && [ "$sid" != "null" ] && link="${link}&sid=${sid}"
+                                [ -n "$fp" ] && [ "$fp" != "null" ] && link="${link}&fp=${fp}"
+                            elif [ "$tls_type" == "tls" ]; then
+                                [ -n "$fp" ] && [ "$fp" != "null" ] && link="${link}&fp=${fp}"
+                            fi
+                            
+                            # Phân biệt chuẩn cho gRPC (serviceName) và WS/xHTTP (path)
+                            if [ "$net" == "grpc" ] && [ -n "$path" ]; then
+                                link="${link}&serviceName=$(echo -n "$path" | jq -sRr @uri)"
+                            elif [ -n "$path" ]; then
+                                local enc_path=$(echo -n "$path" | jq -sRr @uri)
+                                [ "$enc_path" != "%2F" ] && link="${link}&path=${enc_path}" || link="${link}&path=/"
+                            fi
+                            
                             [ -n "$host" ] && link="${link}&host=${host}"
+                            
                             link="${link}#${tag}"
                             ;;
                         vmess)
