@@ -219,7 +219,7 @@ add_user() {
             map(
                 if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
                 elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
+                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then .settings.users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     else
@@ -228,7 +228,7 @@ add_user() {
                 if .port == ($p|tonumber) then
                     if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
                     elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                    elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
+                    elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then .settings.users += [{"password": $u, "email": $e}]
                     else . end
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
@@ -262,7 +262,7 @@ delete_user() {
             jq 'map(
                 if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
                     .settings.clients = []
-                elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then 
                     .settings.users = []
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
@@ -287,7 +287,7 @@ delete_user() {
                 map(
                     if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
                         .settings.clients |= map(select(.email != $e))
-                    elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                    elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then 
                         .settings.users |= map(select(.email != $e))
                     else . end
                 )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
@@ -328,7 +328,7 @@ toggle_user_status() {
             map(
                 if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
                     .settings.clients |= map(select(.email != $e))
-                elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then 
                     .settings.users |= map(select(.email != $e))
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
@@ -347,7 +347,7 @@ toggle_user_status() {
             map(
                 if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
                 elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
+                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then .settings.users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
             
