@@ -225,7 +225,8 @@ add_user() {
 
     # 4. Áp dụng
     echo -e "${YELLOW}Đang áp dụng thay đổi...${NC}"
-    systemctl restart xray
+    log_info "Đang áp dụng thay đổi và khởi động lại Xray..."
+    apply_config # Chỉ cần gọi hàm này là đủ
     log_info "Đã thêm user: $email thành công."
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
@@ -234,9 +235,26 @@ delete_user() {
     echo -n "Nhập Email/Tên User cần xóa: "
     read email
     
+    # 1. Xóa trong users.json
     jq --arg email "$email" 'del(.[] | select(.email == $email))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
     
-    log_info "Đã xóa user: $email khỏi database."
+    # 2. Xóa trong nodes.json (BẮT BUỘC PHẢI CÓ)
+    jq --arg e "$email" '
+        map(
+            if .protocol == "vless" or .protocol == "vmess" then 
+                .settings.clients |= map(select(.email != $e))
+            elif .protocol == "trojan" then 
+                .settings.clients |= map(select(.email != $e))
+            elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                .settings.users |= map(select(.email != $e))
+            else . end
+        )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+
+    log_info "Đã xóa user: $email khỏi hệ thống."
+    
+    # 3. Áp dụng thay đổi
+    apply_config # Hàm này sẽ restart xray giúp bạn
+    
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
