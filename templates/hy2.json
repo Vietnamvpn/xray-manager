@@ -2,13 +2,28 @@
   "port": 443,
   "protocol": "hysteria2",
   "settings": {
-    "clients": [],
+    "users": [],
     "upMbps": 1000,
     "downMbps": 1000,
     "obfs": {
       "type": "salamander",
-      "password": "default-obfs-pass"
+      "password": "THAY_BANG_MAT_KHAU_OBFS"
     }
   },
-  "tag": "hy2-inbound"
+  "streamSettings": {
+    "security": "tls",
+    "tlsSettings": {
+      "serverName": "www.cloudflare.com",
+      "alpn": [
+        "h3"
+      ],
+      "certificates": [
+        {
+          "certificateFile": "/đường/dẫn/tới/chứng/chỉ/fullchain.cer",
+          "keyFile": "/đường/dẫn/tới/chứng/chỉ/private.key"
+        }
+      ]
+    }
+  },
+  "tag": "hy2-tls"
 }

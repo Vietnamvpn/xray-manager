@@ -8,9 +8,18 @@
   "streamSettings": {
     "network": "ws",
     "security": "tls",
+    "tlsSettings": {
+      "serverName": "www.cloudflare.com",
+      "certificates": [
+        {
+          "certificateFile": "/đường/dẫn/tới/chứng/chỉ/fullchain.cer",
+          "keyFile": "/đường/dẫn/tới/chứng/chỉ/private.key"
+        }
+      ]
+    },
     "wsSettings": {
       "path": "/vless-ws"
     }
   },
-  "tag": "vless-ws"
+  "tag": "vless-ws-tls"
 }

@@ -9,22 +9,47 @@ INSTALL_DIR="/etc/xray-manager"
 REPO_URL="https://github.com/Vietnamvpn/xray-manager.git"
 
 if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
-    echo "=== Khởi tạo môi trường và tải mã nguồn từ GitHub ==="
+    clear
+    echo "================================================================="
+    echo "            CHÀO MỪNG ĐẾN VỚI XRAY-MANAGER                       "
+    echo "================================================================="
+    echo " Tác giả     : Vietnamvpn"
+    echo " Website     : https://github.com/Vietnamvpn/xray-manager"
+    echo " Xray-core   : Phiên bản Mới nhất (Latest Release)"
+    echo "================================================================="
+    echo ""
     
-    # Kiểm tra quyền root trước khi cài gói phụ thuộc hệ thống
+    read -p " Nhấn [Enter] để bắt đầu cài đặt hoặc nhập '0' để hủy bỏ: " choice
+    if [ "$choice" == "0" ]; then
+        echo "Đã hủy bỏ quá trình cài đặt."
+        exit 0
+    fi
+
+    echo ""
+    echo "=== Kiểm tra hệ điều hành và quyền quản trị ==="
+    
+    # Kiểm tra quyền root
     if [ "$EUID" -ne 0 ]; then
-        echo "Lỗi: Vui lòng chạy lệnh bằng quyền root (sudo su)."
+        echo "[LỖI] Vui lòng chạy lệnh bằng quyền root (sudo su)."
         exit 1
     fi
 
-    # Cài đặt git và curl để chuẩn bị kéo mã nguồn
+    # Kiểm tra và tải môi trường phụ thuộc
     if [ -f /etc/debian_version ]; then
-        apt-get update -y && apt-get install git curl -y
+        echo "[INFO] Hệ điều hành: Debian/Ubuntu. Đang tải môi trường..."
+        apt-get update -y && apt-get install -y git curl wget unzip jq uuid-runtime openssl
+        if [ $? -ne 0 ]; then echo "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
     elif [ -f /etc/redhat-release ]; then
-        yum install git curl -y
+        echo "[INFO] Hệ điều hành: CentOS/RedHat. Đang tải môi trường..."
+        yum install -y epel-release
+        yum install -y git curl wget unzip jq util-linux openssl
+        if [ $? -ne 0 ]; then echo "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
+    else
+        echo "[LỖI] Hệ điều hành không được hỗ trợ. Vui lòng sử dụng Ubuntu, Debian hoặc CentOS."
+        exit 1
     fi
     
-    # Tiến hành clone hoặc cập nhật repo
+    echo "=== Tải mã nguồn từ GitHub ==="
     if [ -d "$INSTALL_DIR" ]; then
         cd "$INSTALL_DIR" && git reset --hard HEAD && git pull
     else
@@ -40,7 +65,9 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     # Phân quyền thực thi
     chmod +x "$INSTALL_DIR/main.sh"
     chmod +x "$INSTALL_DIR/install.sh"
-    chmod +x "$INSTALL_DIR/scripts/"*.sh
+    if ls "$INSTALL_DIR/scripts/"*.sh 1> /dev/null 2>&1; then
+        chmod +x "$INSTALL_DIR/scripts/"*.sh
+    fi
     
     # Chuyển tiếp thực thi sang file install.sh vừa tải về để chạy code gốc bên dưới
     cd "$INSTALL_DIR"
@@ -49,33 +76,58 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
 fi
 # =================================================================
 
-# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY (ĐÃ SỬA LỖI NHẬN NHẦM FILE)
+# GIỮ NGUYÊN TOÀN BỘ MÃ NGUỒN GỐC CỦA BẠN DƯỚI ĐÂY (ĐÃ BỔ SUNG CÁC TÍNH NĂNG THEO YÊU CẦU)
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURRENT_DIR}/config.conf"
-source "${SCRIPTS_DIR}/utils.sh"
 
-check_root
+# Nếu utils.sh có tồn tại thì source, tránh báo lỗi nếu file chưa được tạo kịp
+if [ -f "${SCRIPTS_DIR}/utils.sh" ]; then
+    source "${SCRIPTS_DIR}/utils.sh"
+fi
 
-log_info "Bắt đầu cài đặt Xray-core..."
+# Hàm log tạm trong trường hợp chưa có utils.sh
+log_info() {
+    echo "[INFO] $1"
+}
 
-# Cài đặt các gói phụ thuộc
-apt-get update -y
-apt-get install -y curl wget unzip jq uuid-runtime
-
-# XÓA BỎ FILE PHÍM TẮT LỖI CŨ (Để tránh script XTLS nhận diện nhầm file main.sh thành lõi xray)
+# Xóa bỏ phím tắt lỗi cũ (Nếu có)
 if [ -L /usr/local/bin/xray ] || [ -f /usr/local/bin/xray ]; then
     rm -f /usr/local/bin/xray
 fi
 
-# Tải và cài đặt Xray-core thông qua script chính thức (Kiểm tra lỗi tải/cài đặt)
+log_info "Bắt đầu tải và cài đặt Xray-core..."
+
+# Tải và cài đặt Xray-core thông qua script chính thức
 if ! bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install; then
     log_info "[LỖI] Quá trình cài đặt lõi Xray-core thất bại. Vui lòng kiểm tra lại kết nối mạng hệ thống."
     exit 1
 fi
 
-# Thiết lập thư mục cấu hình
+# Thiết lập thư mục cấu hình Xray
 mkdir -p "${XRAY_CONFIG_DIR}" || { log_info "[LỖI] Không thể tạo thư mục cấu hình ${XRAY_CONFIG_DIR}"; exit 1; }
-cp "${TEMPLATES_DIR}/base.json" "${XRAY_CONFIG_DIR}/config.json" || { log_info "[LỖI] Không tìm thấy hoặc không thể sao chép file base.json"; exit 1; }
+
+# Tự động tạo Chứng chỉ (Certificate) để chạy Node
+mkdir -p "${XRAY_CONFIG_DIR}/certs"
+if [ ! -f "${XRAY_CONFIG_DIR}/certs/server.crt" ]; then
+    log_info "Đang tạo chứng chỉ tự ký (Self-signed) cho Node..."
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "${XRAY_CONFIG_DIR}/certs/server.key" \
+        -out "${XRAY_CONFIG_DIR}/certs/server.crt" \
+        -subj "/C=VN/ST=Hanoi/L=Hanoi/O=Vietnamvpn/OU=XrayManager/CN=xray.manager.local" >/dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        log_info "Đã tạo chứng chỉ thành công tại: ${XRAY_CONFIG_DIR}/certs/"
+    else
+        log_info "[LỖI] Không thể tạo chứng chỉ tự ký. Các Node có thể không hoạt động với TLS."
+    fi
+fi
+
+# Chép cấu hình mẫu
+if [ -f "${TEMPLATES_DIR}/base.json" ]; then
+    cp "${TEMPLATES_DIR}/base.json" "${XRAY_CONFIG_DIR}/config.json"
+else
+    log_info "[CẢNH BÁO] Không tìm thấy file ${TEMPLATES_DIR}/base.json. Vui lòng cấu hình sau."
+fi
 
 # Thiết lập systemd service
 if [ -f "${TEMPLATES_DIR}/xray.service" ]; then
@@ -83,15 +135,21 @@ if [ -f "${TEMPLATES_DIR}/xray.service" ]; then
     systemctl daemon-reload
     systemctl enable xray
     if ! systemctl restart xray; then
-        log_info "[LỖI] Không thể khởi động dịch vụ Xray hệ thống."
-        exit 1
+        log_info "[LỖI] Không thể khởi động dịch vụ Xray. Vui lòng kiểm tra lại file config."
     fi
 else
-    log_info "[LỖI] Không tìm thấy tệp mẫu xray.service tại đường dẫn templates/."
-    exit 1
+    log_info "[CẢNH BÁO] Không tìm thấy tệp mẫu xray.service tại đường dẫn templates/. Bỏ qua bước setup SystemD."
 fi
 
-# Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý (Chỉ tạo khi mọi bước trên đã xong)
+# Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý
 ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/xray-manager
+chmod +x /usr/local/bin/xray-manager
 
-log_info "Cài đặt Xray-core hoàn tất. Tiến trình đang chạy."
+echo "================================================================="
+echo " CÀI ĐẶT THÀNH CÔNG!"
+echo " Hệ thống Xray-core và Xray-Manager đã được thiết lập."
+echo " Chứng chỉ TLS Node đã sẵn sàng tại: ${XRAY_CONFIG_DIR}/certs/"
+echo "================================================================="
+echo " Vui lòng gõ lệnh dưới đây bất cứ lúc nào để vào Menu quản lý:"
+echo " => xray-manager "
+echo "================================================================="

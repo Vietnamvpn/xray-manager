@@ -7,10 +7,22 @@
   },
   "streamSettings": {
     "network": "grpc",
-    "security": "tls",
+    "security": "reality",
+    "realitySettings": {
+      "show": false,
+      "dest": "www.microsoft.com:443",
+      "xver": 0,
+      "serverNames": [
+        "www.microsoft.com"
+      ],
+      "privateKey": "THAY_BẰNG_PRIVATE_KEY_X25519_CỦA_ÔNG",
+      "shortIds": [
+        "THAY_BẰNG_SHORT_ID_CỦA_ÔNG"
+      ]
+    },
     "grpcSettings": {
       "serviceName": "vless-grpc"
     }
   },
-  "tag": "vless-grpc"
+  "tag": "vless-grpc-reality"
 }
