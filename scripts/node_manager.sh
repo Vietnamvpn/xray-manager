@@ -85,263 +85,101 @@ show_node_menu() {
 # 2. HÀM THÊM NODE: THÔNG MINH, TỰ ĐỘNG VÀ BẪY LỖI KHẮT KHE
 # =================================================================
 add_node() {
+    # Khởi tạo phiên làm việc mới
     mkdir -p /tmp
     echo "[]" > /tmp/session_nodes.json
     
+    # --- PHẦN 1: TẠO NODE ---
     while true; do
         clear
-        echo -e "${GREEN}--- THÊM NODE MẠNG MỚI ---${NC}"
-        echo -e ""
-        echo -e "1. vless  | 2. vmess"
-        echo -e "3. trojan | 4. hy2"
-        echo -e ""   
+        echo -e "${GREEN}--- THÊM NODE MỚI ---${NC}"
+        echo -e "1. vless | 2. vmess | 3. trojan | 4. hy2"
         read -p "Chọn giao thức (1-4): " proto_choice
         
         local protocol=""
         case $proto_choice in
             1) protocol="vless" ;; 2) protocol="vmess" ;; 3) protocol="trojan" ;; 4) protocol="hy2" ;;
-            *) echo -e "${RED}[LỖI] Lựa chọn không hợp lệ!${NC}"; sleep 1; continue ;;
+            *) echo -e "${RED}[LỖI] Chọn lại!${NC}"; sleep 1; continue ;;
         esac
 
+        # Chọn template
         local tpl_file=""
         if [ "$protocol" != "hy2" ]; then
             local template_path="${TEMPLATES_DIR}/${protocol}"
-            
-            # Kiểm tra thư mục có tồn tại không
-            if [ ! -d "$template_path" ]; then
-                echo -e "${RED}[LỖI] Không tìm thấy thư mục cấu hình: $template_path${NC}"
-                sleep 2; continue
-            fi
-
-            echo -e "\n${GREEN}--- CÁC TRANSPORT KHẢ DỤNG CHO $protocol ---${NC}"
-            
-            # Tự động quét file .json trong thư mục tương ứng
-            # Ví dụ: templates/vless/ws.json -> ['ws']
             local options=($(ls "$template_path"/*.json 2>/dev/null | xargs -n 1 basename | sed 's/\.json//'))
+            [ ${#options[@]} -eq 0 ] && { echo -e "${RED}Lỗi template!${NC}"; sleep 1; continue; }
             
-            if [ ${#options[@]} -eq 0 ]; then
-                echo -e "${RED}[LỖI] Thư mục $template_path không có file .json nào!${NC}"
-                sleep 2; continue
-            fi
-
-            # Hiển thị menu số tự động (1, 2, 3...)
-            PS3="Nhập số tương ứng để chọn Transport: "
+            PS3="Chọn transport: "
             select transport in "${options[@]}"; do
                 if [ -n "$transport" ]; then
                     tpl_file="${template_path}/${transport}.json"
-                    echo -e "${BLUE}-> Đã chọn: $transport${NC}"
                     break
-                else
-                    echo -e "${RED}[LỖI] Lựa chọn không hợp lệ, vui lòng chọn lại.${NC}"
                 fi
             done
         else
             tpl_file="${TEMPLATES_DIR}/hy2.json"
         fi
 
-        if [ ! -f "$tpl_file" ]; then
-            echo -e "${RED}[LỖI] Không tồn tại file mẫu: $tpl_file${NC}"
-            read -n 1 -s -r -p "Bấm phím bất kỳ để làm lại..."
-            continue
-        fi
-
-        echo -e "\n${YELLOW}--- THÔNG SỐ NODE ---${NC}"
+        # Cấu hình node
+        read -p "Domain (để trống lấy IP): " input_domain
+        local domain_or_ip="${input_domain:-$(curl -s https://api.ipify.org || echo "127.0.0.1")}"
         
-        # 2.1 - TỰ ĐỘNG ĐIỀN DOMAIN/IP
-        read -p "Nhập Domain (Bỏ trống mặc định lấy IP VPS): " input_domain
-        local domain_or_ip=""
-        if [ -z "$input_domain" ]; then
-            domain_or_ip=$(curl -s --max-time 3 https://api.ipify.org || echo "127.0.0.1")
-            echo -e "${BLUE}-> Đã tự điền IP: $domain_or_ip${NC}"
-        else
-            domain_or_ip="$input_domain"
-        fi
-
-        # 2.2 - TỰ ĐỘNG ĐIỀN & QUÉT TRÙNG PORT
-        read -p "Nhập Port (Bỏ trống hệ thống tự random & check trùng): " input_port
-        local port=0
-        if [ -z "$input_port" ]; then
-            while true; do
-                port=$((RANDOM % 55000 + 10000))
-                local dup_db=$(jq -e --argjson p "$port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
-                local dup_tmp=$(jq -e --argjson p "$port" '.[] | select(.port == $p)' /tmp/session_nodes.json >/dev/null 2>&1 && echo "yes" || echo "no")
-                if [ "$dup_db" == "no" ] && [ "$dup_tmp" == "no" ]; then break; fi
-            done
-            echo -e "${BLUE}-> Đã tự điền Port: $port${NC}"
-        else
-            port="$input_port"
-            local dup_db=$(jq -e --argjson p "$port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
-            if [ "$dup_db" == "yes" ]; then
-                echo -e "${RED}[LỖI NGHIÊM TRỌNG] Port $port đã có Node khác sử dụng trong hệ thống! Vui lòng chọn Port khác.${NC}"
-                sleep 2; continue
-            fi
-        fi
-
-        # 2.3 - TỰ ĐỘNG ĐIỀN SNI DÀNH CHO TLS/REALITY
-        read -p "Nhập SNI (Bỏ trống hệ thống lấy ngẫu nhiên tên miền sạch): " input_sni
-        local sni=""
-        if [ -z "$input_sni" ]; then
-            local sni_list=("www.cloudflare.com" "images.apple.com" "www.microsoft.com" "s0.awsstatic.com" "www.amazon.com")
-            sni=${sni_list[$RANDOM % ${#sni_list[@]}]}
-            echo -e "${BLUE}-> Đã tự điền SNI: $sni${NC}"
-        else
-            sni="$input_sni"
-        fi
-
-        # 2.4 - TỰ ĐỘNG PHÁT HIỆN VÀ TẠO CẶP KHÓA X25519 CHO REALITY
-        local private_key=""
-        local public_key=""
-        if jq -e '.streamSettings.realitySettings' "$tpl_file" >/dev/null 2>&1; then
-            echo -e "${YELLOW}Phát hiện cấu hình Reality. Đang tự động tạo cặp khóa x25519...${NC}"
-            local xray_bin="/usr/local/bin/xray"
-            
-            if [ -f "$xray_bin" ]; then
-                local keys=$($xray_bin x25519 2>/dev/null)
-                # Cập nhật logic lọc theo format thực tế:
-                # PrivateKey: <key>
-                # Password (PublicKey): <key>
-                private_key=$(echo "$keys" | grep "PrivateKey:" | awk '{print $2}')
-                public_key=$(echo "$keys" | grep "PublicKey" | awk '{print $NF}')
-            fi
-
-            if [ -z "$private_key" ] || [ -z "$public_key" ]; then
-                echo -e "${RED}[CẢNH BÁO] Không thể trích xuất khóa x25519. Lõi Xray không trả về định dạng mong đợi.${NC}"
-            else
-                echo -e "${GREEN}-> Đã trích xuất thành công Private Key và Public Key.${NC}"
-            fi
-        fi
-
+        read -p "Port (để trống random): " input_port
+        local port="${input_port:-$((RANDOM % 55000 + 10000))}"
+        
+        # Tạo node tạm
         local tag="${protocol}-${port}"
-
-        # Đóng gói Node kèm xử lý logic Reality (Đồng bộ hóa 3 trường)
-        if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" --arg priv "$private_key" --arg pub "$public_key" '
-            .port = ($p|tonumber) | 
-            .tag = $t | 
-            .domain = $dom |
-            (if $pub != "" then .publicKey = $pub else . end) |
-            (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $sni else . end) | 
-            (if .streamSettings.realitySettings then 
-                .streamSettings.realitySettings.dest = ($sni + ":443") |
-                .streamSettings.realitySettings.serverName = $sni |
-                .streamSettings.realitySettings.serverNames = [$sni] | 
-                (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
-             else . end)
-        ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
-            echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
-            sleep 3
-            continue
-        fi
-
+        jq --arg p "$port" --arg t "$tag" --arg dom "$domain_or_ip" '
+            .port = ($p|tonumber) | .tag = $t | .domain = $dom
+        ' "$tpl_file" > /tmp/single_node.json
+        
         jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
-
-        echo -e "${GREEN}[OK] Đã cấu hình xong Node: $tag${NC}"
-        echo ""
-        read -p "Bạn có muốn thêm tiếp 1 Node nữa không? (y/n): " confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then break; fi
+        
+        read -p "Thêm tiếp node nữa? (y/n): " confirm
+        [[ "$confirm" != "y" ]] && break
     done
 
-    # =================================================================
-    # BƯỚC 3: GÁN USER (TỰ ĐỘNG LẤY HẾT HOẶC CHỌN USER CỤ THỂ)
-    # =================================================================
+    # --- PHẦN 2: GÁN USER ---
     USER_DB="${INSTALL_DIR}/data/users.json"
-    [ ! -f "$USER_DB" ] && echo "[]" > "$USER_DB"
-    
-    # Kiểm tra xem có node nào trong phiên tạo không
-    local count=$(jq '. | length' /tmp/session_nodes.json 2>/dev/null || echo 0)
-    if [ "$count" -eq 0 ]; then return; fi
-
-    clear
-    echo -e "${GREEN}--- THIẾT LẬP USER CHO $count NODE ---${NC}"
-    echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
-    read -p "Nhập Tên User (hoặc để trống): " username
-
-    local users_json=$(c# =================================================================
-    # BƯỚC 3: GÁN USER (TỰ ĐỘNG LẤY HẾT HOẶC CHỌN USER CỤ THỂ)
-    # =================================================================
-    USER_DB="${INSTALL_DIR}/data/users.json"
-    [ ! -f "$USER_DB" ] && echo "[]" > "$USER_DB"
-    
-    # Kiểm tra xem có node nào trong phiên tạo không
-    local count=$(jq '. | length' /tmp/session_nodes.json 2>/dev/null || echo 0)
-    if [ "$count" -eq 0 ]; then 
-        echo -e "${RED}[LỖI] Không tìm thấy dữ liệu node để gán user!${NC}"
-        return 
-    fi
-
-    clear
-    echo -e "${GREEN}--- THIẾT LẬP USER CHO $count NODE ---${NC}"
-    echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
-    read -p "Nhập Tên User (hoặc để trống): " username
-
     local users_json=$(cat "$USER_DB")
-    local user_count=$(echo "$users_json" | jq '. | length')
+    
+    echo -e "${YELLOW}Nhập Tên User (hoặc để trống để gán tất cả):${NC}"
+    read -p "> " username
 
-    # BẮT ĐẦU XỬ LÝ JQ
-    echo -e "${BLUE}-> Đang cập nhật cấu hình cho các node...${NC}"
-
-    # Cấu trúc câu lệnh jq chung để xử lý logic
-    # Chúng ta dùng --slurpfile với [0] để truy xuất đúng mảng node
+    # Lọc filter jq
     local jq_filter=''
     if [ -z "$username" ]; then
-        # TRƯỜNG HỢP 1: GÁN TẤT CẢ
-        if [ "$user_count" -eq 0 ]; then
-            echo -e "${RED}[LỖI] Hệ thống chưa có User nào để gán!${NC}"
-            return
-        fi
-        
         jq_filter='$session[0] | map(
-            if .protocol == "vless" or .protocol == "vmess" then 
-                .settings.clients = ($us | map({id: .uuid, email: .email}))
-            elif .protocol == "trojan" then 
-                .settings.clients = ($us | map({password: .uuid, email: .email}))
-            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
-                .settings.users = ($us | map({password: .uuid, email: .email}))
+            if .protocol == "vless" or .protocol == "vmess" then .settings.clients = ($us | map({id: .uuid, email: .email}))
+            elif .protocol == "trojan" then .settings.clients = ($us | map({password: .uuid, email: .email}))
+            elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users = ($us | map({password: .uuid, email: .email}))
             else . end
         )'
     else
-        # TRƯỜNG HỢP 2: GÁN CỤ THỂ
-        local user_data=$(echo "$users_json" | jq -c --arg e "$username" '.[] | select(.email == $e)')
-        if [ -z "$user_data" ]; then
-            echo -e "${RED}[LỖI] User '$username' không tồn tại!${NC}"
-            return
-        fi
-        local user_uuid=$(echo "$user_data" | jq -r '.uuid')
-        
+        local user_uuid=$(echo "$users_json" | jq -r --arg e "$username" '.[] | select(.email == $e) | .uuid')
+        [ -z "$user_uuid" ] && { echo -e "${RED}User không tồn tại!${NC}"; return; }
         jq_filter='$session[0] | map(
-            if .protocol == "vless" or .protocol == "vmess" then 
-                .settings.clients += [{"id": "'$user_uuid'", "email": "'$username'"}]
-            elif .protocol == "trojan" then 
-                .settings.clients += [{"password": "'$user_uuid'", "email": "'$username'"}]
-            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
-                .settings.users += [{"password": "'$user_uuid'", "email": "'$username'"}]
+            if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": "'$user_uuid'", "email": "'$username'"}]
+            elif .protocol == "trojan" then .settings.clients += [{"password": "'$user_uuid'", "email": "'$username'"}]
+            elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": "'$user_uuid'", "email": "'$username'"}]
             else . end
         )'
     fi
 
-    # THỰC THI JQ VỚI KIỂM TRA LỖI NGHIÊM NGẶT
+    # Thực thi lưu file
     if jq --slurpfile session /tmp/session_nodes.json --argjson us "$users_json" "$jq_filter" /tmp/session_nodes.json > /tmp/session_nodes_final.json 2> /tmp/jq_error.log; then
-        
-        # Di chuyển file final vào NODE_DB
         if mv /tmp/session_nodes_final.json "$NODE_DB"; then
-            echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật $count node với danh sách user.${NC}"
-            
-            # Áp dụng thay đổi
-            log_info "Đang khởi động lại dịch vụ Xray..."
+            echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật xong!${NC}"
             apply_config
         else
-            echo -e "${RED}[LỖI] Không thể lưu file cấu hình node (lỗi mv)!${NC}"
+            echo -e "${RED}[LỖI] Không thể lưu file!${NC}"
         fi
-        
     else
-        # Nếu jq thất bại, in ra file lỗi để debug
-        echo -e "${RED}[LỖI] Xử lý cấu hình JSON thất bại!${NC}"
-        echo -e "${RED}Chi tiết lỗi jq:${NC}"
+        echo -e "${RED}[LỖI] Xử lý JSON thất bại:${NC}"
         cat /tmp/jq_error.log
-        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
-        return
     fi
     
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
 }
 
 update_node() {
