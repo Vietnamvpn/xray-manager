@@ -46,8 +46,8 @@
       {
         "type": "field",
         "outboundTag": "blocked",
-        "category": [
-          "ads"
+        "domain": [
+          "geosite:category-ads"
         ]
       }
     ]
