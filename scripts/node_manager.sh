@@ -278,27 +278,25 @@ fi
         if [ "$user_count" -eq 0 ]; then
             echo -e "${RED}[LỖI] Hệ thống chưa có User nào! Vui lòng nhập tên để tạo mới.${NC}"
             read -n 1 -s -r -p "Bấm phím để nhập tên..."
-            # Chạy lại bước này
             add_node 
             return
         fi
         
         echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
         
-        # Sửa lỗi 1: Loại bỏ --slurpfile session và xử lý trực tiếp mảng
-        # Sửa lỗi 2 & 3: Bổ sung check field "type" và auto map chuẩn Singbox (.users) hoặc Xray (.settings.clients)
+        # Tự động nhận diện cấu trúc mảng trong template để map dữ liệu chuẩn
         jq --argjson us "$users_json" '
             map(
-                if .protocol == "vless" or .protocol == "vmess" then 
-                    .settings.clients = ($us | map({id: .uuid, email: .email}))
-                elif .protocol == "trojan" then 
-                    .settings.clients = ($us | map({password: .uuid, email: .email}))
-                elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" or .type == "hysteria2" or .type == "hysteria" or .type == "hy2" then 
-                    if has("settings") then
-                        .settings.clients = ($us | map({password: .uuid, email: .email}))
+                if .settings.users != null then
+                    .settings.users = ($us | map({password: .uuid, email: .email}))
+                elif .settings.clients != null then
+                    if .protocol == "vless" or .protocol == "vmess" then
+                        .settings.clients = ($us | map({id: .uuid, email: .email}))
                     else
-                        .users = ($us | map({password: .uuid, email: .email}))
+                        .settings.clients = ($us | map({password: .uuid, email: .email}))
                     end
+                elif .users != null then
+                    .users = ($us | map({password: .uuid, email: .email}))
                 else . end
             )
         ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
@@ -317,21 +315,21 @@ fi
             echo -e "${BLUE}-> Đang sử dụng User '\''$username'\''.${NC}"
         fi
 
-        # Tương tự như Trường hợp 1, cập nhật logic cho Hysteria2
+        # Tự động nhận diện cấu trúc mảng trong template để gán 1 user cụ thể
         jq --arg cred "$user_cred" --arg email "$username" '
-          map(
-            if .protocol == "vless" or .protocol == "vmess" then 
-                .settings.clients = [{"id": $cred, "email": $email}]
-            elif .protocol == "trojan" then 
-                .settings.clients = [{"password": $cred, "email": $email}]
-            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" or .type == "hysteria2" or .type == "hysteria" or .type == "hy2" then 
-                if has("settings") then
-                    .settings.clients = [{"password": $cred, "email": $email}]
-                else
+            map(
+                if .settings.users != null then
+                    .settings.users = [{"password": $cred, "email": $email}]
+                elif .settings.clients != null then
+                    if .protocol == "vless" or .protocol == "vmess" then
+                        .settings.clients = [{"id": $cred, "email": $email}]
+                    else
+                        .settings.clients = [{"password": $cred, "email": $email}]
+                    end
+                elif .users != null then
                     .users = [{"password": $cred, "email": $email}]
-                end
-            else . end
-          )
+                else . end
+            )
         ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
     fi
 
