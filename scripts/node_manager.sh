@@ -302,36 +302,34 @@ update_node() {
     echo -e "${YELLOW}--- CẬP NHẬT NODE ---${NC}"
     read -p "Nhập Port của Node muốn cập nhật: " target_port
 
-    # Kiểm tra node có tồn tại không
-    local node_exists=$(jq -e --argjson p "$target_port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+    # CẬP NHẬT TẠI ĐÂY: Dùng (.port|tostring) để so sánh bất chấp kiểu dữ liệu
+    local node_exists=$(jq -e --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
     
     if [ "$node_exists" == "no" ]; then
-        echo -e "${RED}[LỖI] Không tìm thấy Node có Port $target_port${NC}"
+        echo -e "${RED}[LỖI] Không tìm thấy Node nào có Port $target_port (Kiểm tra lại dữ liệu file nodes.json)${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
         return
     fi
 
-    # Lấy thông tin hiện tại để hiển thị làm gợi ý
-    local current_node=$(jq -c --argjson p "$target_port" '.[] | select(.port == $p)' "$NODE_DB")
+    # Lấy thông tin hiện tại
+    local current_node=$(jq -c --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB")
     local old_domain=$(echo "$current_node" | jq -r '.domain')
     local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
 
     echo -e "${BLUE}Đang cập nhật Node Port: $target_port${NC}"
     echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
 
-    # Nhập thông tin mới
     read -p "Nhập Domain mới (Cũ: $old_domain): " new_domain
     read -p "Nhập Port mới (Cũ: $target_port): " new_port
     read -p "Nhập SNI mới (Cũ: $old_sni): " new_sni
 
-    # Xử lý logic gán giá trị
     local final_domain="${new_domain:-$old_domain}"
     local final_port="${new_port:-$target_port}"
     local final_sni="${new_sni:-$old_sni}"
 
-    # Kiểm tra trùng port nếu có thay đổi
+    # Kiểm tra trùng port (ép kiểu khi so sánh)
     if [ "$final_port" != "$target_port" ]; then
-        local dup_db=$(jq -e --argjson p "$final_port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+        local dup_db=$(jq -e --arg p "$final_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
         if [ "$dup_db" == "yes" ]; then
             echo -e "${RED}[LỖI] Port $final_port đã có Node khác sử dụng!${NC}"
             read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
@@ -339,19 +337,16 @@ update_node() {
         fi
     fi
 
-    # Thực hiện Update JSON
-    if jq --argjson p "$target_port" \
-          --argjson np "$final_port" \
+    # Thực hiện Update (Đảm bảo giá trị Port mới được gán đúng là số)
+    if jq --arg p "$target_port" \
+          --arg np "$final_port" \
           --arg d "$final_domain" \
           --arg s "$final_sni" '
-        map(if .port == $p then
+        map(if .port|tostring == $p then
             .domain = $d |
-            .port = $np |
-            # Cập nhật Tag mới cho đồng bộ với port
-            .tag = (.protocol + "-" + ($np|tostring)) |
-            # Cập nhật SNI cho TLS
+            .port = ($np|tonumber) |
+            .tag = (.protocol + "-" + $np) |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
-            # Cập nhật SNI cho Reality (dest, serverName, serverNames)
             (if .streamSettings.realitySettings then 
                 .streamSettings.realitySettings.dest = ($s + ":443") |
                 .streamSettings.realitySettings.serverName = $s |
