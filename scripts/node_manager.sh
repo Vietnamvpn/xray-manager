@@ -187,7 +187,7 @@ add_node() {
 
         local tag="${protocol}-${port}"
 
-        # Đóng gói Node kèm xử lý logic Khóa nâng cao
+        # Đóng gói Node kèm xử lý logic Reality (Đồng bộ hóa 3 trường)
         if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" --arg priv "$private_key" --arg pub "$public_key" '
             .port = ($p|tonumber) | 
             .tag = $t | 
@@ -195,8 +195,9 @@ add_node() {
             (if $pub != "" then .publicKey = $pub else . end) |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $sni else . end) | 
             (if .streamSettings.realitySettings then 
+                .streamSettings.realitySettings.dest = ($sni + ":443") |
                 .streamSettings.realitySettings.serverName = $sni |
-                .streamSettings.realitySettings.serverNames = [$sni] |
+                .streamSettings.realitySettings.serverNames = [$sni] | 
                 (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
              else . end)
         ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
