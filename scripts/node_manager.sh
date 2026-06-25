@@ -255,71 +255,93 @@ add_node() {
     echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
     read -p "Nhập Tên User (hoặc để trống): " username
 
+    local users_json=$(c# =================================================================
+    # BƯỚC 3: GÁN USER (TỰ ĐỘNG LẤY HẾT HOẶC CHỌN USER CỤ THỂ)
+    # =================================================================
+    USER_DB="${INSTALL_DIR}/data/users.json"
+    [ ! -f "$USER_DB" ] && echo "[]" > "$USER_DB"
+    
+    # Kiểm tra xem có node nào trong phiên tạo không
+    local count=$(jq '. | length' /tmp/session_nodes.json 2>/dev/null || echo 0)
+    if [ "$count" -eq 0 ]; then 
+        echo -e "${RED}[LỖI] Không tìm thấy dữ liệu node để gán user!${NC}"
+        return 
+    fi
+
+    clear
+    echo -e "${GREEN}--- THIẾT LẬP USER CHO $count NODE ---${NC}"
+    echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
+    read -p "Nhập Tên User (hoặc để trống): " username
+
     local users_json=$(cat "$USER_DB")
     local user_count=$(echo "$users_json" | jq '. | length')
 
-    # TRƯỜNG HỢP 1: ĐỂ TRỐNG -> GÁN TẤT CẢ USER
+    # BẮT ĐẦU XỬ LÝ JQ
+    echo -e "${BLUE}-> Đang cập nhật cấu hình cho các node...${NC}"
+
+    # Cấu trúc câu lệnh jq chung để xử lý logic
+    # Chúng ta dùng --slurpfile với [0] để truy xuất đúng mảng node
+    local jq_filter=''
     if [ -z "$username" ]; then
+        # TRƯỜNG HỢP 1: GÁN TẤT CẢ
         if [ "$user_count" -eq 0 ]; then
-            echo -e "${RED}[LỖI] Hệ thống chưa có User nào! Vui lòng nhập tên để tạo mới.${NC}"
-            read -n 1 -s -r -p "Bấm phím để nhập tên..."
-            # Chạy lại bước này
-            add_node 
+            echo -e "${RED}[LỖI] Hệ thống chưa có User nào để gán!${NC}"
             return
         fi
         
-        echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
-        
-        jq --slurpfile session /tmp/session_nodes.json --argjson us "$users_json" '
-            $session | map(
-                if .protocol == "vless" or .protocol == "vmess" then 
-                    .settings.clients = ($us | map({id: .uuid, email: .email}))
-                elif .protocol == "trojan" then 
-                    .settings.clients = ($us | map({password: .uuid, email: .email}))
-                elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
-                    .settings.users = ($us | map({password: .uuid, email: .email}))
-                else . end
-            )
-        ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
-
-    # TRƯỜNG HỢP 2: NHẬP TÊN -> GÁN CỤ THỂ
-    else
-        local user_data=$(echo "$users_json" | jq -c --arg e "$username" '.[] | select(.email == $e)')
-        local user_cred=""
-
-        if [ -z "$user_data" ]; then
-            echo -e "${YELLOW}-> User '$username' chưa tồn tại. Đang tạo mới...${NC}"
-            user_cred=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null)
-            jq --arg email "$username" --arg uuid "$user_cred" '. += [{"email": $email, "uuid": $uuid, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
-        else
-            user_cred=$(echo "$user_data" | jq -r '.uuid')
-            echo -e "${BLUE}-> Đang sử dụng User '$username'.${NC}"
-        fi
-
-        jq --arg cred "$user_cred" --arg email "$username" '
-          map(
-            if .protocol == "vless" or .protocol == "vmess" then .settings.clients = [{"id": $cred, "email": $email}]
-            elif .protocol == "trojan" then .settings.clients = [{"password": $cred, "email": $email}]
-            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then .settings.users = [{"password": $cred, "email": $email}]
+        jq_filter='$session[0] | map(
+            if .protocol == "vless" or .protocol == "vmess" then 
+                .settings.clients = ($us | map({id: .uuid, email: .email}))
+            elif .protocol == "trojan" then 
+                .settings.clients = ($us | map({password: .uuid, email: .email}))
+            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
+                .settings.users = ($us | map({password: .uuid, email: .email}))
             else . end
-          )
-        ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
+        )'
+    else
+        # TRƯỜNG HỢP 2: GÁN CỤ THỂ
+        local user_data=$(echo "$users_json" | jq -c --arg e "$username" '.[] | select(.email == $e)')
+        if [ -z "$user_data" ]; then
+            echo -e "${RED}[LỖI] User '$username' không tồn tại!${NC}"
+            return
+        fi
+        local user_uuid=$(echo "$user_data" | jq -r '.uuid')
+        
+        jq_filter='$session[0] | map(
+            if .protocol == "vless" or .protocol == "vmess" then 
+                .settings.clients += [{"id": "'$user_uuid'", "email": "'$username'"}]
+            elif .protocol == "trojan" then 
+                .settings.clients += [{"password": "'$user_uuid'", "email": "'$username'"}]
+            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
+                .settings.users += [{"password": "'$user_uuid'", "email": "'$username'"}]
+            else . end
+        )'
     fi
 
-    # LƯU VÀO DATABASE CHÍNH
-    if ! jq --slurpfile new_nodes /tmp/session_nodes_final.json '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
-        echo -e "${RED}[LỖI] Không thể lưu vào Database.${NC}"
-        rm -f "${NODE_DB}.tmp" /tmp/session_nodes* /tmp/single_node*
-        return
+    # THỰC THI JQ VỚI KIỂM TRA LỖI NGHIÊM NGẶT
+    if jq --slurpfile session /tmp/session_nodes.json --argjson us "$users_json" "$jq_filter" /tmp/session_nodes.json > /tmp/session_nodes_final.json 2> /tmp/jq_error.log; then
+        
+        # Di chuyển file final vào NODE_DB
+        if mv /tmp/session_nodes_final.json "$NODE_DB"; then
+            echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật $count node với danh sách user.${NC}"
+            
+            # Áp dụng thay đổi
+            log_info "Đang khởi động lại dịch vụ Xray..."
+            apply_config
+        else
+            echo -e "${RED}[LỖI] Không thể lưu file cấu hình node (lỗi mv)!${NC}"
+        fi
+        
     else
-        mv "${NODE_DB}.tmp" "$NODE_DB"
+        # Nếu jq thất bại, in ra file lỗi để debug
+        echo -e "${RED}[LỖI] Xử lý cấu hình JSON thất bại!${NC}"
+        echo -e "${RED}Chi tiết lỗi jq:${NC}"
+        cat /tmp/jq_error.log
+        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+        return
     fi
     
-    rm -f /tmp/session_nodes.json /tmp/single_node.json /tmp/session_nodes_final.json
-    
-    # KÍCH HOẠT CẤU HÌNH
-    apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại menu..."
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
 update_node() {
