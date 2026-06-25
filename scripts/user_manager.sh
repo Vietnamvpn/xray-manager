@@ -241,28 +241,60 @@ add_user() {
 }
 
 delete_user() {
-    echo -n "Nhập Email/Tên User cần xóa: "
+    echo -e "\n${YELLOW}--- XÓA USER ---${NC}"
+    echo -n "Nhập Tên User cần xóa để trống sẽ xóa TẤT CẢ: "
     read email
     
-    # 1. Xóa trong users.json
-    jq --arg email "$email" 'del(.[] | select(.email == $email))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
-    
-    # 2. Xóa trong nodes.json (BẮT BUỘC PHẢI CÓ)
-    jq --arg e "$email" '
-        map(
-            if .protocol == "vless" or .protocol == "vmess" then 
-                .settings.clients |= map(select(.email != $e))
-            elif .protocol == "trojan" then 
-                .settings.clients |= map(select(.email != $e))
-            elif .protocol == "hy2" or .protocol == "hysteria2" then 
-                .settings.users |= map(select(.email != $e))
-            else . end
-        )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+    # TRƯỜNG HỢP 1: XÓA TẤT CẢ
+    if [ -z "$email" ]; then
+        echo -e "${RED}=====================================================${NC}"
+        echo -e "${RED}CẢNH BÁO: BẠN ĐANG CHỌN XÓA TẤT CẢ USER TRONG HỆ THỐNG!${NC}"
+        echo -e "${RED}Hành động này không thể hoàn tác.${NC}"
+        echo -e "${RED}=====================================================${NC}"
+        read -p "Bạn có chắc chắn muốn xóa TẤT CẢ không? (y/n): " confirm
+        
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+            # Reset users.json về rỗng
+            echo "[]" > "$USER_DB"
+            
+            # Reset clients/users trong nodes.json
+            jq 'map(
+                if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
+                    .settings.clients = []
+                elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                    .settings.users = []
+                else . end
+            )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+            
+            log_info "Đã xóa TẤT CẢ user khỏi hệ thống."
+            apply_config
+        else
+            echo -e "${YELLOW}Đã hủy lệnh xóa tất cả.${NC}"
+        fi
 
-    log_info "Đã xóa user: $email khỏi hệ thống."
-    
-    # 3. Áp dụng thay đổi
-    apply_config # Hàm này sẽ restart xray giúp bạn
+    # TRƯỜNG HỢP 2: XÓA 1 USER CỤ THỂ
+    else
+        # Kiểm tra user có tồn tại không
+        if ! jq -e --arg e "$email" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1; then
+            echo -e "${RED}[LỖI] User '$email' không tồn tại!${NC}"
+        else
+            # 1. Xóa trong users.json
+            jq --arg email "$email" 'del(.[] | select(.email == $email))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+            
+            # 2. Xóa trong nodes.json
+            jq --arg e "$email" '
+                map(
+                    if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
+                        .settings.clients |= map(select(.email != $e))
+                    elif .protocol == "hy2" or .protocol == "hysteria2" then 
+                        .settings.users |= map(select(.email != $e))
+                    else . end
+                )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+
+            log_info "Đã xóa user: $email khỏi hệ thống."
+            apply_config
+        fi
+    fi
     
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
