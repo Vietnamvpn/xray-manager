@@ -163,7 +163,7 @@ add_user() {
     echo -n "Nhập Email/Tên User: "
     read email
     
-    # Kiểm tra user đã tồn tại chưa (nếu cần)
+    # Kiểm tra user đã tồn tại chưa
     if jq -e --arg e "$email" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1; then
         echo -e "${RED}[LỖI] User '$email' đã tồn tại!${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
@@ -183,14 +183,24 @@ add_user() {
     echo -e "Nếu để trống, User sẽ được thêm vào TẤT CẢ các Node đang chạy."
     read -p "Nhập Port (hoặc để trống): " target_port
 
-    # 3. Cập nhật vào nodes.json
+    # 3. Kiểm tra cổng có tồn tại hay không (Nếu có nhập port)
+    if [ -n "$target_port" ]; then
+        local node_exists=$(jq -e --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+        if [ "$node_exists" == "no" ]; then
+            echo -e "${RED}[LỖI] Không tìm thấy Node nào đang sử dụng cổng $target_port!${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+            return
+        fi
+    fi
+
+    # 4. Cập nhật vào nodes.json
     if [ -z "$target_port" ]; then
         echo -e "${BLUE}-> Đang thêm user vào TẤT CẢ các node...${NC}"
         jq --arg e "$email" --arg u "$uuid" '
             map(
                 if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
                 elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                elif .protocol == "hy2" then .settings.users += [{"password": $u, "email": $e}]
+                elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     else
@@ -200,13 +210,13 @@ add_user() {
                 if .port|tostring == $p then
                     if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
                     elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                    elif .protocol == "hy2" then .settings.users += [{"password": $u, "email": $e}]
+                    elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
                     else . end
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     fi
 
-    # 4. Khởi động lại Xray để áp dụng cấu hình
+    # 5. Khởi động lại Xray
     echo -e "${YELLOW}Đang áp dụng thay đổi...${NC}"
     systemctl restart xray
     
