@@ -155,7 +155,7 @@ list_users() {
         fi
     done < <(jq -c '.[]' "$USER_DB" 2>/dev/null)
     
-    echo ""
+    echo -e "${BLUE}----------------------------------------------------${NC}"
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
