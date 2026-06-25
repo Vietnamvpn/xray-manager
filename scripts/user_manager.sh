@@ -42,9 +42,9 @@ list_users() {
         local status=$(echo "$user_row" | jq -r '.status')
         
         echo -e "${BLUE}====================================================${NC}"
-        echo -e " 👤 ${YELLOW}User:${NC} $email | ${YELLOW}Quota:${NC} ${quota}GB | ${YELLOW}Trạng thái:${NC} $status"
+        echo -e " ${YELLOW}User:${NC} $email | ${YELLOW}Quota:${NC} ${quota}GB | ${YELLOW}Trạng thái:${NC} $status"
         echo -e "${BLUE}----------------------------------------------------${NC}"
-        echo -e " 🔗 ${GREEN}Các liên kết Node kết nối:${NC}"
+        echo -e " ${GREEN}Các liên kết Node kết nối:${NC}"
         
         local found_link=false
         
