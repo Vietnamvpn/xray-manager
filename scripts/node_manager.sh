@@ -368,11 +368,28 @@ update_node() {
 delete_node() {
     clear
     echo -e "${RED}--- GỠ BỎ CẤU HÌNH NODE ---${NC}"
-    read -p "Nhập chính xác TAG của Node muốn xóa: " tag
-    if [ -z "$tag" ]; then return; fi
+    echo -e "${YELLOW}Lưu ý: Nếu để trống và nhấn Enter, TOÀN BỘ danh sách Node sẽ bị xóa!${NC}"
+    read -p "Nhập Port của Node muốn xóa (Để trống để xóa TẤT CẢ): " target_port
     
-    jq --arg t "$tag" 'del(.[] | select(.tag == $t))' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
-    echo -e "${GREEN}Đã gỡ bỏ cấu hình Node khỏi Database.${NC}"
+    # TRƯỜNG HỢP 1: Để trống -> Xóa tất cả
+    if [ -z "$target_port" ]; then
+        read -p "Bạn có THỰC SỰ muốn xóa TẤT CẢ Node không? (y/n): " confirm
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+            echo "[]" > "$NODE_DB"
+            echo -e "${GREEN}Đã xóa TẤT CẢ các Node.${NC}"
+        else
+            echo -e "${YELLOW}Đã hủy lệnh xóa.${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+            return
+        fi
+    
+    # TRƯỜNG HỢP 2: Có nhập Port -> Xóa Node cụ thể
+    else
+        # Sử dụng --argjson để jq hiểu $target_port là số (number)
+        jq --argjson p "$target_port" 'del(.[] | select(.port == $p))' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+        echo -e "${GREEN}Đã gỡ bỏ cấu hình Node có Port $target_port khỏi Database.${NC}"
+    fi
+    
     apply_config
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
