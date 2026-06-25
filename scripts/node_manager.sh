@@ -168,19 +168,20 @@ add_node() {
         if jq -e '.streamSettings.realitySettings' "$tpl_file" >/dev/null 2>&1; then
             echo -e "${YELLOW}Phát hiện cấu hình Reality. Đang tự động tạo cặp khóa x25519...${NC}"
             local xray_bin="/usr/local/bin/xray"
-            [ -f "$xray_bin" ] || xray_bin="xray"
             
-            if command -v $xray_bin &>/dev/null; then
+            if [ -f "$xray_bin" ]; then
                 local keys=$($xray_bin x25519 2>/dev/null)
-                private_key=$(echo "$keys" | grep -i "Private key:" | awk '{print $3}')
-                public_key=$(echo "$keys" | grep -i "Public key:" | awk '{print $3}')
+                # Cập nhật logic lọc theo format thực tế:
+                # PrivateKey: <key>
+                # Password (PublicKey): <key>
+                private_key=$(echo "$keys" | grep "PrivateKey:" | awk '{print $2}')
+                public_key=$(echo "$keys" | grep "PublicKey" | awk '{print $NF}')
             fi
 
             if [ -z "$private_key" ] || [ -z "$public_key" ]; then
-                echo -e "${RED}[CẢNH BÁO] Không thể gọi lõi Xray để sinh khóa x25519. Vui lòng kiểm tra lại trạng thái cài đặt core.${NC}"
+                echo -e "${RED}[CẢNH BÁO] Không thể trích xuất khóa x25519. Lõi Xray không trả về định dạng mong đợi.${NC}"
             else
-                echo -e "${GREEN}-> Đã đồng bộ Private Key vào cấu hình chạy.${NC}"
-                echo -e "${GREEN}-> Đã lưu giữ Public Key để xuất link Client.${NC}"
+                echo -e "${GREEN}-> Đã trích xuất thành công Private Key và Public Key.${NC}"
             fi
         fi
 

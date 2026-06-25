@@ -17,7 +17,7 @@
       ],
       "privateKey": "THAY_BẰNG_PRIVATE_KEY_X25519_CỦA_ÔNG",
       "shortIds": [
-        "THAY_BẰNG_SHORT_ID_CỦA_ÔNG"
+        "0123456789abcdef"
       ]
     },
     "grpcSettings": {
