@@ -160,15 +160,28 @@ list_users() {
 }
 
 add_user() {
-    echo -n "Nhập Email/Tên User: "
-    read email
+    local email=""
     
-    # Kiểm tra user đã tồn tại chưa
-    if jq -e --arg e "$email" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1; then
-        echo -e "${RED}[LỖI] User '$email' đã tồn tại!${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
-        return
-    fi
+    # Vòng lặp bắt buộc nhập tên và kiểm tra trùng lặp
+    while true; do
+        echo -n "Nhập Email/Tên User: "
+        read email
+        
+        # 1. Kiểm tra trống
+        if [ -z "$email" ]; then
+            echo -e "${RED}[LỖI] Tên User không được để trống! Vui lòng nhập lại.${NC}"
+            continue
+        fi
+        
+        # 2. Kiểm tra tồn tại
+        if jq -e --arg e "$email" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1; then
+            echo -e "${RED}[LỖI] User '$email' đã tồn tại! Vui lòng nhập tên khác.${NC}"
+            continue
+        fi
+        
+        # Nếu đã qua 2 bước trên thì thoát vòng lặp
+        break
+    done
 
     uuid=$(uuidgen)
     
@@ -180,19 +193,16 @@ add_user() {
     # 2. Vòng lặp chọn Node (Bắt nhập lại nếu sai)
     local target_port=""
     while true; do
-        echo -e "\n${YELLOW}--- THÊM USER VÀO NODE ---${NC}"
-        echo -e "Nhập Cổng (Port) của Node muốn thêm user này vào."
-        echo -e "Nhấn [Enter] nếu để trống để thêm vào TẤT CẢ các Node."
+        echo -e "\n${YELLOW}--- THÊM USER VÀO NODE CỦA BẠN ---${NC}"
+        echo -e "Nhập Port của Node muốn thêm user này vào."
+        echo -e "Để trống sẽ thêm vào TẤT CẢ các Node."
         read -p "Nhập Port: " target_port
 
-        # Nếu để trống thì thêm vào tất cả, thoát vòng lặp
         if [ -z "$target_port" ]; then
             echo -e "${BLUE}-> Đang thêm user vào TẤT CẢ các node...${NC}"
             break
         fi
 
-        # Kiểm tra cổng có tồn tại trong nodes.json không
-        # Dùng tonumber để ép kiểu port trong json về số để so sánh chính xác
         if jq -e --arg p "$target_port" '.[] | select(.port == ($p|tonumber))' "$NODE_DB" >/dev/null 2>&1; then
             echo -e "${BLUE}-> Đã tìm thấy Node cổng $target_port. Đang xử lý...${NC}"
             break
@@ -224,9 +234,8 @@ add_user() {
     fi
 
     # 4. Áp dụng
-    echo -e "${YELLOW}Đang áp dụng thay đổi...${NC}"
     log_info "Đang áp dụng thay đổi và khởi động lại Xray..."
-    apply_config # Chỉ cần gọi hàm này là đủ
+    apply_config 
     log_info "Đã thêm user: $email thành công."
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
