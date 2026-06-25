@@ -196,6 +196,7 @@ add_node() {
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $sni else . end) | 
             (if .streamSettings.realitySettings then 
                 .streamSettings.realitySettings.serverName = $sni |
+                .streamSettings.realitySettings.serverNames = [$sni] |
                 (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
              else . end)
         ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
