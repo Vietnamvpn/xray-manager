@@ -177,25 +177,33 @@ add_user() {
        '. += [{"email": $email, "uuid": $uuid, "quota_gb": $quota, "status": "active"}]' \
        "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
        
-    # 2. Hỏi chọn Node
-    echo -e "\n${YELLOW}--- THÊM USER VÀO NODE ---${NC}"
-    echo -e "Nhập Cổng (Port) của Node muốn thêm user này vào."
-    echo -e "Nếu để trống, User sẽ được thêm vào TẤT CẢ các Node đang chạy."
-    read -p "Nhập Port (hoặc để trống): " target_port
+    # 2. Vòng lặp chọn Node (Bắt nhập lại nếu sai)
+    local target_port=""
+    while true; do
+        echo -e "\n${YELLOW}--- THÊM USER VÀO NODE ---${NC}"
+        echo -e "Nhập Cổng (Port) của Node muốn thêm user này vào."
+        echo -e "Nhấn [Enter] nếu để trống để thêm vào TẤT CẢ các Node."
+        read -p "Nhập Port: " target_port
 
-    # 3. Kiểm tra cổng có tồn tại hay không (Nếu có nhập port)
-    if [ -n "$target_port" ]; then
-        local node_exists=$(jq -e --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
-        if [ "$node_exists" == "no" ]; then
-            echo -e "${RED}[LỖI] Không tìm thấy Node nào đang sử dụng cổng $target_port!${NC}"
-            read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
-            return
+        # Nếu để trống thì thêm vào tất cả, thoát vòng lặp
+        if [ -z "$target_port" ]; then
+            echo -e "${BLUE}-> Đang thêm user vào TẤT CẢ các node...${NC}"
+            break
         fi
-    fi
 
-    # 4. Cập nhật vào nodes.json
+        # Kiểm tra cổng có tồn tại trong nodes.json không
+        # Dùng tonumber để ép kiểu port trong json về số để so sánh chính xác
+        if jq -e --arg p "$target_port" '.[] | select(.port == ($p|tonumber))' "$NODE_DB" >/dev/null 2>&1; then
+            echo -e "${BLUE}-> Đã tìm thấy Node cổng $target_port. Đang xử lý...${NC}"
+            break
+        else
+            echo -e "${RED}[LỖI] Cổng $target_port không tồn tại trong hệ thống! Vui lòng nhập lại.${NC}"
+            sleep 1
+        fi
+    done
+
+    # 3. Cập nhật vào nodes.json
     if [ -z "$target_port" ]; then
-        echo -e "${BLUE}-> Đang thêm user vào TẤT CẢ các node...${NC}"
         jq --arg e "$email" --arg u "$uuid" '
             map(
                 if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
@@ -204,10 +212,9 @@ add_user() {
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     else
-        echo -e "${BLUE}-> Đang thêm user vào node cổng $target_port...${NC}"
         jq --arg e "$email" --arg u "$uuid" --arg p "$target_port" '
             map(
-                if .port|tostring == $p then
+                if .port == ($p|tonumber) then
                     if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
                     elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
                     elif .protocol == "hy2" or .protocol == "hysteria2" then .settings.users += [{"password": $u, "email": $e}]
@@ -216,10 +223,9 @@ add_user() {
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     fi
 
-    # 5. Khởi động lại Xray
+    # 4. Áp dụng
     echo -e "${YELLOW}Đang áp dụng thay đổi...${NC}"
     systemctl restart xray
-    
     log_info "Đã thêm user: $email thành công."
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
