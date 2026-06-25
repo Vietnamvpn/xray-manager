@@ -8,6 +8,7 @@ check_root
 
 INSTALL_DIR="${INSTALL_DIR:-/etc/xray-manager}"
 NODE_DB="${INSTALL_DIR}/data/nodes.json"
+USER_DB="${INSTALL_DIR}/data/users.json"
 
 show_user_menu() {
     clear
