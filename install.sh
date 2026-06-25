@@ -106,6 +106,12 @@ fi
 # Thiết lập thư mục cấu hình Xray
 mkdir -p "${XRAY_CONFIG_DIR}" || { log_info "[LỖI] Không thể tạo thư mục cấu hình ${XRAY_CONFIG_DIR}"; exit 1; }
 
+# Thiết lập thư mục và quyền cho log Xray
+mkdir -p /var/log/xray
+touch /var/log/xray/access.log /var/log/xray/error.log
+chmod 777 /var/log/xray
+chmod 666 /var/log/xray/*.log
+
 # Tự động tạo Chứng chỉ (Certificate) để chạy Node
 mkdir -p "${XRAY_CONFIG_DIR}/certs"
 if [ ! -f "${XRAY_CONFIG_DIR}/certs/server.crt" ]; then
