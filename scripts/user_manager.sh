@@ -145,7 +145,7 @@ list_users() {
                             link="hysteria2://${user_cred}@${domain}:${port}/?sni=${sni}&insecure=1#${tag}"
                             ;;
                     esac
-                    echo -e "    - ${YELLOW}[${protocol^^}]${NC} $link"
+                    echo -e "    - $link"
                 fi
             done < <(jq -c '.[]' "$NODE_DB" 2>/dev/null)
         fi
