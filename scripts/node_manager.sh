@@ -91,8 +91,10 @@ add_node() {
     while true; do
         clear
         echo -e "${GREEN}--- THÊM NODE MẠNG MỚI ---${NC}"
+        echo -e ""
         echo -e "1. vless  | 2. vmess"
-        echo -e "3. trojan | 4. hy2"   
+        echo -e "3. trojan | 4. hy2"
+        echo -e ""   
         read -p "Chọn giao thức (1-4): " proto_choice
         
         local protocol=""
@@ -103,14 +105,36 @@ add_node() {
 
         local tpl_file=""
         if [ "$protocol" != "hy2" ]; then
-            echo -e "\nChọn Transport: 1. ws   2. tcp   3. grpc   4. xhttp"
-            read -p "Nhập số (1-4): " trans_choice
-            local transport=""
-            case $trans_choice in
-                1) transport="ws" ;; 2) transport="tcp" ;; 3) transport="grpc" ;; 4) transport="xhttp" ;;
-                *) echo -e "${RED}[LỖI] Lựa chọn không hợp lệ!${NC}"; sleep 1; continue ;;
-            esac
-            tpl_file="${TEMPLATES_DIR}/${protocol}/${transport}.json"
+            local template_path="${TEMPLATES_DIR}/${protocol}"
+            
+            # Kiểm tra thư mục có tồn tại không
+            if [ ! -d "$template_path" ]; then
+                echo -e "${RED}[LỖI] Không tìm thấy thư mục cấu hình: $template_path${NC}"
+                sleep 2; continue
+            fi
+
+            echo -e "\n${GREEN}--- CÁC TRANSPORT KHẢ DỤNG CHO $protocol ---${NC}"
+            
+            # Tự động quét file .json trong thư mục tương ứng
+            # Ví dụ: templates/vless/ws.json -> ['ws']
+            local options=($(ls "$template_path"/*.json 2>/dev/null | xargs -n 1 basename | sed 's/\.json//'))
+            
+            if [ ${#options[@]} -eq 0 ]; then
+                echo -e "${RED}[LỖI] Thư mục $template_path không có file .json nào!${NC}"
+                sleep 2; continue
+            fi
+
+            # Hiển thị menu số tự động (1, 2, 3...)
+            PS3="Nhập số tương ứng để chọn Transport: "
+            select transport in "${options[@]}"; do
+                if [ -n "$transport" ]; then
+                    tpl_file="${template_path}/${transport}.json"
+                    echo -e "${BLUE}-> Đã chọn: $transport${NC}"
+                    break
+                else
+                    echo -e "${RED}[LỖI] Lựa chọn không hợp lệ, vui lòng chọn lại.${NC}"
+                fi
+            done
         else
             tpl_file="${TEMPLATES_DIR}/hy2.json"
         fi
@@ -157,7 +181,7 @@ add_node() {
         read -p "Nhập SNI (Bỏ trống hệ thống lấy ngẫu nhiên tên miền sạch): " input_sni
         local sni=""
         if [ -z "$input_sni" ]; then
-            local sni_list=("www.cloudflare.com" "images.apple.com" "www.microsoft.com" "www.google.com" "www.amazon.com")
+            local sni_list=("www.cloudflare.com" "images.apple.com" "www.microsoft.com" "s0.awsstatic.com" "www.amazon.com")
             sni=${sni_list[$RANDOM % ${#sni_list[@]}]}
             echo -e "${BLUE}-> Đã tự điền SNI: $sni${NC}"
         else
