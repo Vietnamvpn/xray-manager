@@ -213,16 +213,25 @@ add_node() {
 
         local tag="${protocol}-${port}"
 
-        # Tự động tạo mật khẩu OBFS ngẫu nhiên (chỉ dùng cho hy2)
+        # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
     local obfs_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+    local cert_file="${XRAY_CONFIG_DIR}/certs/server.crt"
+    local key_file="${XRAY_CONFIG_DIR}/certs/server.key"
 
-    # Đóng gói Node kèm xử lý logic Reality và Hysteria2
-    if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" --arg priv "$private_key" --arg pub "$public_key" --arg obfs "$obfs_pass" '
+    # 2. Đóng gói Node (Tích hợp cả OBFS + Chứng chỉ + Reality)
+    if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" \
+            --arg priv "$private_key" --arg pub "$public_key" \
+            --arg obfs "$obfs_pass" \
+            --arg cert "$cert_file" --arg key "$key_file" '
         .port = ($p|tonumber) | 
         .tag = $t | 
         .domain = $dom |
         (if $pub != "" then .publicKey = $pub else . end) |
-        (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $sni else . end) | 
+        (if .streamSettings.tlsSettings then 
+            .streamSettings.tlsSettings.serverName = $sni |
+            .streamSettings.tlsSettings.certificates[0].certificateFile = $cert |
+            .streamSettings.tlsSettings.certificates[0].keyFile = $key
+         else . end) | 
         (if .streamSettings.realitySettings then 
             .streamSettings.realitySettings.dest = ($sni + ":443") |
             .streamSettings.realitySettings.serverName = $sni |
@@ -238,7 +247,7 @@ add_node() {
         continue
     fi
 
-        jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
+    jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
 
         echo -e "${GREEN}[OK] Đã cấu hình xong Node: $tag${NC}"
         echo ""

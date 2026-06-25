@@ -12,8 +12,8 @@
       "serverName": "www.cloudflare.com",
       "certificates": [
         {
-          "certificateFile": "/đường/dẫn/tới/chứng/chỉ/fullchain.cer",
-          "keyFile": "/đường/dẫn/tới/chứng/chỉ/private.key"
+          "certificateFile": "CERT_PATH_PLACEHOLDER",
+          "keyFile": "KEY_PATH_PLACEHOLDER"
         }
       ]
     },
