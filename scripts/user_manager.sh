@@ -52,15 +52,11 @@ list_users() {
         # Quét chéo Database Node để đối chiếu Email và xuất link
         if [ -s "$NODE_DB" ]; then
             while read -r node_row; do
-                # Lấy UUID/Password thực tế của user trong Node này
+                # Lấy UUID/Password thực tế (Tự động quét cả clients hoặc users)
                 local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
-                    if .protocol == "vless" or .protocol == "vmess" then
-                        (.settings.clients[]? | select(.email == $e) | .id) // empty
-                    elif .protocol == "trojan" then
-                        (.settings.clients[]? | select(.email == $e) | .password) // empty
-                    elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then
-                        (.settings.users[]? | select(.email == $e) | .password) // empty
-                    else empty end
+                    (.settings.clients // .settings.users // [])[] 
+                    | select(.email == $e) 
+                    | (.id // .password) // empty
                 ')
                 
                 # Nếu User có tồn tại trong Node này thì tiến hành build link
@@ -213,22 +209,20 @@ add_user() {
         fi
     done
 
-    # 3. Cập nhật vào nodes.json
+    # 3. Cập nhật vào nodes.json (Tự động nhận diện cấu trúc mảng)
     if [ -z "$target_port" ]; then
         jq --arg e "$email" --arg u "$uuid" '
             map(
-                if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
-                elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then .settings.users += [{"password": $u, "email": $e}]
+                if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
+                elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     else
         jq --arg e "$email" --arg u "$uuid" --arg p "$target_port" '
             map(
                 if .port == ($p|tonumber) then
-                    if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
-                    elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                    elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then .settings.users += [{"password": $u, "email": $e}]
+                    if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
+                    elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
                     else . end
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
@@ -258,12 +252,10 @@ delete_user() {
             # Reset users.json về rỗng
             echo "[]" > "$USER_DB"
             
-            # Reset clients/users trong nodes.json
+            # Reset clients/users trong nodes.json (Tự động dọn dẹp theo mảng có sẵn)
             jq 'map(
-                if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
-                    .settings.clients = []
-                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then 
-                    .settings.users = []
+                if .settings.clients != null then .settings.clients = []
+                elif .settings.users != null then .settings.users = []
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
             
@@ -282,13 +274,11 @@ delete_user() {
             # 1. Xóa trong users.json
             jq --arg email "$email" 'del(.[] | select(.email == $email))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
             
-            # 2. Xóa trong nodes.json
+            # 2. Xóa trong nodes.json (Tự động lọc xóa theo mảng)
             jq --arg e "$email" '
                 map(
-                    if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
-                        .settings.clients |= map(select(.email != $e))
-                    elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then 
-                        .settings.users |= map(select(.email != $e))
+                    if .settings.clients != null then .settings.clients |= map(select(.email != $e))
+                    elif .settings.users != null then .settings.users |= map(select(.email != $e))
                     else . end
                 )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
 
@@ -323,13 +313,11 @@ toggle_user_status() {
         # Cập nhật status trong users.json
         jq --arg e "$email" 'map(if .email == $e then .status = "disabled" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         
-        # Xóa khỏi nodes.json
+        # Xóa khỏi nodes.json (Tự động lọc tắt mạng theo mảng)
         jq --arg e "$email" '
             map(
-                if .protocol == "vless" or .protocol == "vmess" or .protocol == "trojan" then 
-                    .settings.clients |= map(select(.email != $e))
-                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then 
-                    .settings.users |= map(select(.email != $e))
+                if .settings.clients != null then .settings.clients |= map(select(.email != $e))
+                elif .settings.users != null then .settings.users |= map(select(.email != $e))
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
             
@@ -342,12 +330,11 @@ toggle_user_status() {
         # Cập nhật status trong users.json
         jq --arg e "$email" 'map(if .email == $e then .status = "active" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         
-        # Thêm vào tất cả nodes.json
-        jq --arg e "$email" --arg u "$uuid" '
+        # Thêm vào tất cả nodes.json (Tự động chọn mảng clients hoặc users)
+        jq --arg e "$email" --arg u "$uuid" '\
             map(
-                if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}]
-                elif .protocol == "trojan" then .settings.clients += [{"password": $u, "email": $e}]
-                elif .protocol == "hy2" or .protocol == "hysteria2" or .protocol == "hysteria" then .settings.users += [{"password": $u, "email": $e}]
+                if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
+                elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
             
