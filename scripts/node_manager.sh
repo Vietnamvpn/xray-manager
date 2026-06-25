@@ -270,14 +270,20 @@ add_node() {
         
         echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
         
-        jq --slurpfile session /tmp/session_nodes.json --argjson us "$users_json" '
-            $session | map(
+        # Sửa lỗi 1: Loại bỏ --slurpfile session và xử lý trực tiếp mảng
+        # Sửa lỗi 2 & 3: Bổ sung check field "type" và auto map chuẩn Singbox (.users) hoặc Xray (.settings.clients)
+        jq --argjson us "$users_json" '
+            map(
                 if .protocol == "vless" or .protocol == "vmess" then 
                     .settings.clients = ($us | map({id: .uuid, email: .email}))
                 elif .protocol == "trojan" then 
                     .settings.clients = ($us | map({password: .uuid, email: .email}))
-                elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
-                    .settings.users = ($us | map({password: .uuid, email: .email}))
+                elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" or .type == "hysteria2" or .type == "hysteria" or .type == "hy2" then 
+                    if has("settings") then
+                        .settings.clients = ($us | map({password: .uuid, email: .email}))
+                    else
+                        .users = ($us | map({password: .uuid, email: .email}))
+                    end
                 else . end
             )
         ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
@@ -288,19 +294,27 @@ add_node() {
         local user_cred=""
 
         if [ -z "$user_data" ]; then
-            echo -e "${YELLOW}-> User '$username' chưa tồn tại. Đang tạo mới...${NC}"
+            echo -e "${YELLOW}-> User '\''$username'\'' chưa tồn tại. Đang tạo mới...${NC}"
             user_cred=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null)
             jq --arg email "$username" --arg uuid "$user_cred" '. += [{"email": $email, "uuid": $uuid, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         else
             user_cred=$(echo "$user_data" | jq -r '.uuid')
-            echo -e "${BLUE}-> Đang sử dụng User '$username'.${NC}"
+            echo -e "${BLUE}-> Đang sử dụng User '\''$username'\''.${NC}"
         fi
 
+        # Tương tự như Trường hợp 1, cập nhật logic cho Hysteria2
         jq --arg cred "$user_cred" --arg email "$username" '
           map(
-            if .protocol == "vless" or .protocol == "vmess" then .settings.clients = [{"id": $cred, "email": $email}]
-            elif .protocol == "trojan" then .settings.clients = [{"password": $cred, "email": $email}]
-            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then .settings.users = [{"password": $cred, "email": $email}]
+            if .protocol == "vless" or .protocol == "vmess" then 
+                .settings.clients = [{"id": $cred, "email": $email}]
+            elif .protocol == "trojan" then 
+                .settings.clients = [{"password": $cred, "email": $email}]
+            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" or .type == "hysteria2" or .type == "hysteria" or .type == "hy2" then 
+                if has("settings") then
+                    .settings.clients = [{"password": $cred, "email": $email}]
+                else
+                    .users = [{"password": $cred, "email": $email}]
+                end
             else . end
           )
         ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
