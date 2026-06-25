@@ -1,14 +1,24 @@
 #!/bin/bash
-# Module quản lý Người dùng (Users)
+# Module quản lý Người dùng (Users) - Tích hợp Database
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config.conf"
 source "${SCRIPTS_DIR}/utils.sh"
 
 check_root
 
+# Thông số kết nối Database (Nên được định nghĩa trong config.conf)
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_USER="${DB_USER:-root}"
+DB_PASS="${DB_PASS:-your_password}"
+DB_NAME="${DB_NAME:-panel_db}"
+
 INSTALL_DIR="${INSTALL_DIR:-/etc/xray-manager}"
-NODE_DB="${INSTALL_DIR}/data/nodes.json"
-USER_DB="${INSTALL_DIR}/data/users.json"
+NODE_DB="${INSTALL_DIR}/data/nodes.json" # Tạm giữ lại JSON cho Node nếu chưa có yêu cầu đổi
+
+# Hàm hỗ trợ thực thi SQL query trả về định dạng text thuần
+run_sql() {
+    mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -sNe "$1" 2>/dev/null
+}
 
 show_user_menu() {
     clear
@@ -27,19 +37,18 @@ list_users() {
     clear
     echo -e "${GREEN}--- Danh Sách Users & Liên Kết Node ---${NC}"
     
-    if [ ! -s "$USER_DB" ] || [ "$(jq '. | length' "$USER_DB" 2>/dev/null || echo 0)" -eq 0 ]; then
-        echo "Không có User nào trong hệ thống."
+    # Lấy danh sách user từ Database
+    local users_data=$(run_sql "SELECT email, uuid, quota_gb, status FROM users;")
+    
+    if [ -z "$users_data" ]; then
+        echo "Không có User nào trong Database."
         echo ""
         read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
         return
     fi
 
-    # Lặp qua từng user trong Database
-    while read -r user_row; do
-        local email=$(echo "$user_row" | jq -r '.email')
-        local uuid=$(echo "$user_row" | jq -r '.uuid')
-        local quota=$(echo "$user_row" | jq -r '.quota_gb')
-        local status=$(echo "$user_row" | jq -r '.status')
+    # Lặp qua từng user lấy từ DB
+    echo "$users_data" | while IFS=$'\t' read -r email uuid quota status; do
         
         echo -e "${BLUE}====================================================${NC}"
         echo -e " 👤 ${YELLOW}User:${NC} $email | ${YELLOW}Quota:${NC} ${quota}GB | ${YELLOW}Trạng thái:${NC} $status"
@@ -48,10 +57,9 @@ list_users() {
         
         local found_link=false
         
-        # Quét chéo Database Node để đối chiếu Email và xuất link
+        # Quét chéo Database Node để đối chiếu Email và xuất link (Vẫn giữ logic đọc từ JSON file của bạn)
         if [ -s "$NODE_DB" ]; then
             while read -r node_row; do
-                # Lấy UUID/Password thực tế của user trong Node này
                 local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
                     if .protocol == "vless" or .protocol == "vmess" then
                         (.settings.clients[]? | select(.email == $e) | .id) // empty
@@ -62,7 +70,6 @@ list_users() {
                     else empty end
                 ')
                 
-                # Nếu User có tồn tại trong Node này thì tiến hành build link
                 if [ -n "$user_cred" ]; then
                     found_link=true
                     local protocol=$(echo "$node_row" | jq -r '.protocol')
@@ -77,7 +84,6 @@ list_users() {
                     local path=""
                     local host=""
                     
-                    # Đọc thông số TLS hoặc Reality
                     if [ "$(echo "$node_row" | jq -e '.streamSettings.security == "reality" or .streamSettings.realitySettings != null' 2>/dev/null)" == "true" ]; then
                         tls_type="reality"
                         sni=$(echo "$node_row" | jq -r '.streamSettings.realitySettings.serverName // ""')
@@ -87,7 +93,6 @@ list_users() {
                         sni=$(echo "$node_row" | jq -r '.streamSettings.tlsSettings.serverName // ""')
                     fi
                     
-                    # Đọc thông số Transport (WebSocket, gRPC, v.v.)
                     if [ "$net" == "ws" ]; then
                         path=$(echo "$node_row" | jq -r '.streamSettings.wsSettings.path // "/"')
                         host=$(echo "$node_row" | jq -r '.streamSettings.wsSettings.headers.Host // ""')
@@ -95,7 +100,6 @@ list_users() {
                         path=$(echo "$node_row" | jq -r '.streamSettings.grpcSettings.serviceName // ""')
                     fi
                     
-                    # Ghép chuỗi URI dựa trên Protocol
                     local link=""
                     case $protocol in
                         vless|trojan)
@@ -124,7 +128,7 @@ list_users() {
         if [ "$found_link" = false ]; then
             echo "    (User này chưa được gán vào Node nào để tạo link)"
         fi
-    done < <(jq -c '.[]' "$USER_DB" 2>/dev/null)
+    done
     
     echo ""
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
@@ -135,14 +139,16 @@ add_user() {
     read email
     uuid=$(uuidgen)
     
-    # Cập nhật vào users.json
-    jq --arg email "$email" --arg uuid "$uuid" --arg quota "0" \
-       '. += [{"email": $email, "uuid": $uuid, "quota_gb": $quota, "status": "active"}]' \
-       "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
-       
-    log_info "Đã thêm user: $email với UUID: $uuid"
+    # Thực thi lệnh INSERT vào DB
+    run_sql "INSERT INTO users (email, uuid, quota_gb, status) VALUES ('$email', '$uuid', 0, 'active');"
     
-    log_info "Ghi chú: Sẽ cần kết nối API của Xray để thêm user trực tiếp vào Inbound."
+    if [ $? -eq 0 ]; then
+        log_info "Đã thêm user: $email với UUID: $uuid vào Database"
+    else
+        log_error "Lỗi khi thêm user vào Database. Vui lòng kiểm tra lại kết nối hoặc trùng lặp Email."
+    fi
+    
+    log_info "Ghi chú: Sẽ cần kết nối API của Core để thêm user trực tiếp vào Inbound."
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
@@ -150,9 +156,15 @@ delete_user() {
     echo -n "Nhập Email/Tên User cần xóa: "
     read email
     
-    jq --arg email "$email" 'del(.[] | select(.email == $email))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+    # Thực thi lệnh DELETE từ DB
+    run_sql "DELETE FROM users WHERE email = '$email';"
     
-    log_info "Đã xóa user: $email khỏi database."
+    if [ $? -eq 0 ]; then
+        log_info "Đã xóa user: $email khỏi Database."
+    else
+        log_error "Lỗi khi xóa user."
+    fi
+    
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
