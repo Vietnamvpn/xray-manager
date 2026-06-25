@@ -219,10 +219,10 @@ add_node() {
     local key_file="${XRAY_CONFIG_DIR}/certs/server.key"
 
     # 2. Đóng gói Node (Tích hợp cả OBFS + Chứng chỉ + Reality)
-    if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" \
-            --arg priv "$private_key" --arg pub "$public_key" \
-            --arg obfs "$obfs_pass" \
-            --arg cert "$cert_file" --arg key "$key_file" '
+if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" \
+         --arg priv "$private_key" --arg pub "$public_key" \
+         --arg obfs "$obfs_pass" \
+         --arg cert "$cert_file" --arg key "$key_file" '
         .port = ($p|tonumber) | 
         .tag = $t | 
         .domain = $dom |
@@ -238,14 +238,14 @@ add_node() {
             .streamSettings.realitySettings.serverNames = [$sni] | 
             (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
          else . end) |
-        (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .settings.obfs then
-    .settings.obfs.password = $obfs
- else . end)
+        (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .streamSettings.finalmask then
+            .streamSettings.finalmask.udp[0].settings.password = $obfs
+         else . end)
     ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
         echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
         sleep 3
         continue
-    fi
+fi
 
     jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
 
