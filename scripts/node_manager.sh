@@ -217,83 +217,84 @@ add_node() {
     done
 
     # =================================================================
-    # BƯỚC 3: GÁN USER & KIỂM TRA TRÙNG LẶP USER
+    # BƯỚC 3: GÁN USER (TỰ ĐỘNG LẤY HẾT HOẶC CHỌN USER CỤ THỂ)
     # =================================================================
+    USER_DB="${INSTALL_DIR}/data/users.json"
+    [ ! -f "$USER_DB" ] && echo "[]" > "$USER_DB"
+    
+    # Kiểm tra xem có node nào trong phiên tạo không
     local count=$(jq '. | length' /tmp/session_nodes.json 2>/dev/null || echo 0)
-    if [ "$count" -eq 0 ]; then
-        return
-    fi
+    if [ "$count" -eq 0 ]; then return; fi
 
     clear
-    echo -e "${GREEN}--- THIẾT LẬP USER CHO $count NODE VỪA TẠO ---${NC}"
-    local username=""
-    
-    while true; do
-        read -p "Nhập Tên User (Bắt buộc nhập): " username
-        if [ -z "$username" ]; then
-            echo -e "${RED}[LỖI] Tên User không được để trống!${NC}"
-            continue
+    echo -e "${GREEN}--- THIẾT LẬP USER CHO $count NODE ---${NC}"
+    echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
+    read -p "Nhập Tên User (hoặc để trống): " username
+
+    local users_json=$(cat "$USER_DB")
+    local user_count=$(echo "$users_json" | jq '. | length')
+
+    # TRƯỜNG HỢP 1: ĐỂ TRỐNG -> GÁN TẤT CẢ USER
+    if [ -z "$username" ]; then
+        if [ "$user_count" -eq 0 ]; then
+            echo -e "${RED}[LỖI] Hệ thống chưa có User nào! Vui lòng nhập tên để tạo mới.${NC}"
+            read -n 1 -s -r -p "Bấm phím để nhập tên..."
+            # Chạy lại bước này
+            add_node 
+            return
         fi
         
-        local is_duplicate=$(jq --arg u "$username" '
-            [ .[] | (.settings.clients // []) + (.settings.users // []) | .[]? | select(.email == $u) ] | length > 0
-        ' "$NODE_DB")
+        echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
         
-        if [ "$is_duplicate" == "true" ]; then
-            echo -e "${RED}[LỖI NGHIÊM TRỌNG] User '$username' đã tồn tại trong hệ thống! Vui lòng chọn tên khác.${NC}"
+        jq --slurpfile session /tmp/session_nodes.json --argjson us "$users_json" '
+            $session | map(
+                if .protocol == "vless" or .protocol == "vmess" then 
+                    .settings.clients = ($us | map({id: .uuid, email: .email}))
+                elif .protocol == "trojan" then 
+                    .settings.clients = ($us | map({password: .uuid, email: .email}))
+                elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then 
+                    .settings.users = ($us | map({password: .uuid, email: .email}))
+                else . end
+            )
+        ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
+
+    # TRƯỜNG HỢP 2: NHẬP TÊN -> GÁN CỤ THỂ
+    else
+        local user_data=$(echo "$users_json" | jq -c --arg e "$username" '.[] | select(.email == $e)')
+        local user_cred=""
+
+        if [ -z "$user_data" ]; then
+            echo -e "${YELLOW}-> User '$username' chưa tồn tại. Đang tạo mới...${NC}"
+            user_cred=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null)
+            jq --arg email "$username" --arg uuid "$user_cred" '. += [{"email": $email, "uuid": $uuid, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         else
-            break
+            user_cred=$(echo "$user_data" | jq -r '.uuid')
+            echo -e "${BLUE}-> Đang sử dụng User '$username'.${NC}"
         fi
-    done
-    
-    # HỆ THỐNG TỰ ĐỘNG TẠO MẬT KHẨU (UUID)
-    local user_cred=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null)
-    echo -e "${BLUE}-> Hệ thống đã tự động tạo Mật Khẩu (UUID): $user_cred${NC}"
 
-    # Bơm User vào tất cả các Node trong phiên
-    jq --arg cred "$user_cred" --arg email "$username" '
-      map(
-        if .protocol == "vless" or .protocol == "vmess" then .settings.clients = [{"id": $cred, "email": $email}]
-        elif .protocol == "trojan" then .settings.clients = [{"password": $cred, "email": $email}]
-        elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then .settings.users = [{"password": $cred, "email": $email}]
-        else . end
-      )
-    ' /tmp/session_nodes.json > /tmp/session_nodes_final.json 2>/dev/null
+        jq --arg cred "$user_cred" --arg email "$username" '
+          map(
+            if .protocol == "vless" or .protocol == "vmess" then .settings.clients = [{"id": $cred, "email": $email}]
+            elif .protocol == "trojan" then .settings.clients = [{"password": $cred, "email": $email}]
+            elif .protocol == "hysteria2" or .protocol == "hysteria" or .protocol == "hy2" then .settings.users = [{"password": $cred, "email": $email}]
+            else . end
+          )
+        ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
+    fi
 
+    # LƯU VÀO DATABASE CHÍNH
     if ! jq --slurpfile new_nodes /tmp/session_nodes_final.json '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
         echo -e "${RED}[LỖI] Không thể lưu vào Database.${NC}"
         rm -f "${NODE_DB}.tmp" /tmp/session_nodes* /tmp/single_node*
         return
     else
         mv "${NODE_DB}.tmp" "$NODE_DB"
-        
-        # =================================================================
-        # THÊM ĐOẠN NÀY ĐỂ ĐỒNG BỘ SANG DATA USER
-        # =================================================================
-        USER_DB="${INSTALL_DIR}/data/users.json"
-        
-        # Tạo file users.json nếu chưa tồn tại
-        if [ ! -f "$USER_DB" ] || [ ! -s "$USER_DB" ]; then
-            echo "[]" > "$USER_DB"
-        fi
-        
-        # Kiểm tra xem user đã có trong users.json chưa, nếu chưa thì thêm vào
-        local user_exists=$(jq -e --arg e "$username" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
-        
-        if [ "$user_exists" == "no" ]; then
-            jq --arg email "$username" --arg uuid "$user_cred" --arg quota "0" \
-               '. += [{"email": $email, "uuid": $uuid, "quota_gb": $quota, "status": "active"}]' \
-               "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
-            echo -e "${BLUE}-> Đã đồng bộ User '$username' sang Cơ sở dữ liệu User.${NC}"
-        fi
-        # =================================================================
     fi
     
     rm -f /tmp/session_nodes.json /tmp/single_node.json /tmp/session_nodes_final.json
     
-    # GỌI HÀM KHỞI ĐỘNG XRAY
+    # KÍCH HOẠT CẤU HÌNH
     apply_config
-    
     read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại menu..."
 }
 
