@@ -213,24 +213,30 @@ add_node() {
 
         local tag="${protocol}-${port}"
 
-        # Đóng gói Node kèm xử lý logic Reality (Đồng bộ hóa 3 trường)
-        if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" --arg priv "$private_key" --arg pub "$public_key" '
-            .port = ($p|tonumber) | 
-            .tag = $t | 
-            .domain = $dom |
-            (if $pub != "" then .publicKey = $pub else . end) |
-            (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $sni else . end) | 
-            (if .streamSettings.realitySettings then 
-                .streamSettings.realitySettings.dest = ($sni + ":443") |
-                .streamSettings.realitySettings.serverName = $sni |
-                .streamSettings.realitySettings.serverNames = [$sni] | 
-                (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
-             else . end)
-        ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
-            echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
-            sleep 3
-            continue
-        fi
+        # Tự động tạo mật khẩu OBFS ngẫu nhiên (chỉ dùng cho hy2)
+    local obfs_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+
+    # Đóng gói Node kèm xử lý logic Reality và Hysteria2
+    if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" --arg priv "$private_key" --arg pub "$public_key" --arg obfs "$obfs_pass" '
+        .port = ($p|tonumber) | 
+        .tag = $t | 
+        .domain = $dom |
+        (if $pub != "" then .publicKey = $pub else . end) |
+        (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $sni else . end) | 
+        (if .streamSettings.realitySettings then 
+            .streamSettings.realitySettings.dest = ($sni + ":443") |
+            .streamSettings.realitySettings.serverName = $sni |
+            .streamSettings.realitySettings.serverNames = [$sni] | 
+            (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
+         else . end) |
+        (if (.protocol == "hysteria2" or .protocol == "hy2") and .settings.obfs then
+            .settings.obfs.password = $obfs
+         else . end)
+    ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
+        echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
+        sleep 3
+        continue
+    fi
 
         jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
 
