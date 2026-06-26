@@ -8,7 +8,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0;37m' 
+NC='\033[0m' 
 
 # =================================================================
 # TRÌNH KÍCH HOẠT TẢI TỪ XA QUA URL (KHÔNG SỬA ĐOẠN NÀY)
@@ -18,44 +18,44 @@ REPO_URL="https://github.com/Vietnamvpn/xray-manager.git"
 
 if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     clear
-    echo "${BLUE}=================================================================${NC}"
-    echo "${BLUE}            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026                 ${NC}"
-    echo "${BLUE}=================================================================${NC}"
-    echo -e "${CYAN}  → Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
-    echo "${BLUE}=================================================================${NC}"
+    echo -e "${BLUE}=================================================================${NC}"
+    echo -e "${BLUE}            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026                 ${NC}"
+    echo -e "${BLUE}=================================================================${NC}"
+    echo -e "${CYAN}Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
+    echo -e "${BLUE}=================================================================${NC}"
     echo ""
     
     read -p " Nhấn [Enter] để bắt đầu cài đặt hoặc nhập '0' để hủy bỏ: " choice
     if [ "$choice" == "0" ]; then
-        echo "Đã hủy bỏ quá trình cài đặt."
+        echo -e "Đã hủy bỏ quá trình cài đặt."
         exit 0
     fi
 
-    echo ""
-    echo "=== Kiểm tra hệ điều hành và quyền quản trị ==="
+    echo -e ""
+    echo -e "${BLUE}=== Kiểm tra hệ điều hành và quyền quản trị ===${NC}"
     
     # Kiểm tra quyền root
     if [ "$EUID" -ne 0 ]; then
-        echo "[LỖI] Vui lòng chạy lệnh bằng quyền root (sudo su)."
+        echo -e "[LỖI] Vui lòng chạy lệnh bằng quyền root (sudo su)."
         exit 1
     fi
 
     # Kiểm tra và tải môi trường phụ thuộc
     if [ -f /etc/debian_version ]; then
-        echo "[INFO] Hệ điều hành: Debian/Ubuntu. Đang tải môi trường..."
+        echo -e "[INFO] Hệ điều hành: Debian/Ubuntu. Đang tải môi trường..."
         apt-get update -y && apt-get install -y git curl wget unzip jq uuid-runtime openssl
-        if [ $? -ne 0 ]; then echo "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
+        if [ $? -ne 0 ]; then echo -e "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
     elif [ -f /etc/redhat-release ]; then
-        echo "[INFO] Hệ điều hành: CentOS/RedHat. Đang tải môi trường..."
+        echo -e "[INFO] Hệ điều hành: CentOS/RedHat. Đang tải môi trường..."
         yum install -y epel-release
         yum install -y git curl wget unzip jq util-linux openssl
-        if [ $? -ne 0 ]; then echo "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
+        if [ $? -ne 0 ]; then echo -e "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
     else
-        echo "[LỖI] Hệ điều hành không được hỗ trợ. Vui lòng sử dụng Ubuntu, Debian hoặc CentOS."
+        echo -e "[LỖI] Hệ điều hành không được hỗ trợ. Vui lòng sử dụng Ubuntu, Debian hoặc CentOS."
         exit 1
     fi
     
-    echo "=== Tải mã nguồn từ GitHub ==="
+    echo -e "${BLUE}=== Tải mã nguồn từ GitHub ===${NC}"
     if [ -d "$INSTALL_DIR" ]; then
         cd "$INSTALL_DIR" && git reset --hard HEAD && git pull
     else
@@ -156,11 +156,11 @@ fi
 ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/vvc-xr
 chmod +x /usr/local/bin/xray-manager
 
-echo "${BLUE}==========================================================${NC}"
-echo " CÀI ĐẶT THÀNH CÔNG!"
-echo " Hệ thống Xray-core và Xray-Manager đã được thiết lập."
-echo " Chứng chỉ TLS Node đã sẵn sàng tại: ${XRAY_CONFIG_DIR}/certs/"
-echo "${BLUE}===========================================================${NC}"
-echo "${YELLOW} Vui lòng gõ lệnh dưới đây bất cứ lúc nào để vào Menu quản lý:${NC}"
+echo -e "${BLUE}==========================================================${NC}"
+echo -e " CÀI ĐẶT THÀNH CÔNG!"
+echo -e " Hệ thống Xray-core và Xray-Manager đã được thiết lập."
+echo -e " Chứng chỉ TLS Node đã sẵn sàng tại: ${XRAY_CONFIG_DIR}/certs/"
+echo -e "${BLUE}===========================================================${NC}"
+echo -e "${YELLOW} Vui lòng gõ lệnh dưới đây bất cứ lúc nào để vào Menu quản lý:${NC}"
 echo " => vvc-xr"
-echo "${BLUE}============================================================${NC}"
+echo -e "${BLUE}============================================================${NC}"
