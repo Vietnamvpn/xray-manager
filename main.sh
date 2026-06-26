@@ -37,7 +37,7 @@ status_check() {
 }
 
 delete_all_source() {
-    echo -e "${RED}=============================================================================${NC}"
+    echo -e "${RED}==============================================================================${NC}"
     echo -e "${RED}CẢNH BÁO NGUY HIỂM: HÀNH ĐỘNG NÀY SẼ XÓA SẠCH MỌI DỮ LIỆU!${NC}"
     echo -e "${YELLOW}Bao gồm: Xray Service, Xray Core, SSL, User Data, Swap và chính script này.${NC}"
     echo -e "${RED}==============================================================================${NC}"
