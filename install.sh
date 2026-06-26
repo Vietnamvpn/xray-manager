@@ -10,13 +10,12 @@ REPO_URL="https://github.com/Vietnamvpn/xray-manager.git"
 
 if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     clear
-    echo "================================================================="
-    echo "            CHÀO MỪNG ĐẾN VỚI XRAY-MANAGER                       "
-    echo "================================================================="
+    echo "${BLUE}=================================================================${NC}"
+    echo "${BLUE}            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026                 ${NC}"
+    echo "${BLUE}=================================================================${NC}"
     echo " Tác giả     : Vietnamvpn"
     echo -e "${CYAN}  → Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
-    echo " Xray-core   : Phiên bản Mới nhất (Latest Release)"
-    echo "================================================================="
+    echo "${BLUE}=================================================================${NC}"
     echo ""
     
     read -p " Nhấn [Enter] để bắt đầu cài đặt hoặc nhập '0' để hủy bỏ: " choice
@@ -147,14 +146,14 @@ else
 fi
 
 # Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý
-ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/linksub24h-xr
+ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/vvc-xr
 chmod +x /usr/local/bin/xray-manager
 
-echo "================================================================="
+echo "${BLUE}==========================================================${NC}"
 echo " CÀI ĐẶT THÀNH CÔNG!"
 echo " Hệ thống Xray-core và Xray-Manager đã được thiết lập."
 echo " Chứng chỉ TLS Node đã sẵn sàng tại: ${XRAY_CONFIG_DIR}/certs/"
-echo "================================================================="
-echo " Vui lòng gõ lệnh dưới đây bất cứ lúc nào để vào Menu quản lý:"
-echo " => xray-manager "
-echo "================================================================="
+echo "${BLUE}===========================================================${NC}"
+echo "${YELLOW} Vui lòng gõ lệnh dưới đây bất cứ lúc nào để vào Menu quản lý:${NC}"
+echo " => vvc-xr"
+echo "${BLUE}============================================================${NC}"
