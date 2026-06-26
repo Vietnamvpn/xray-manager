@@ -238,7 +238,7 @@ show_menu() {
     fi
 
     echo -e "${BLUE}======================================================================${NC}"
-    echo -e "${BLUE}||${NC}${YELLOW}    MENU QUẢN LÝ LINKSUB24H-XR 2026      ${NC}${BLUE}||$NC}"
+    echo -e "${BLUE}||${NC}${YELLOW}    MENU QUẢN LÝ LINKSUB24H-XR 2026     ${NC}${BLUE}||${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "${CYAN}Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
     echo -e " Phiên bản Xray-core: ${YELLOW}${xray_ver}${NC} | Trạng thái: ${status_color}${xray_status^^}${NC}"
