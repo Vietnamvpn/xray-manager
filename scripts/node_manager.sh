@@ -146,20 +146,20 @@ add_node() {
             continue
         fi
 
-        echo -e "\n${YELLOW}--- THÔNG SỐ NODE ---${NC}"
+        echo -e "\n${YELLOW}Nhập Thông Số Node:${NC}"
         
         # 2.1 - TỰ ĐỘNG ĐIỀN DOMAIN/IP
-        read -p "Nhập Domain (Bỏ trống mặc định lấy IP VPS): " input_domain
+        read -p "Nhập domain để trống sẽ là ip vps: " input_domain
         local domain_or_ip=""
         if [ -z "$input_domain" ]; then
             domain_or_ip=$(curl -s --max-time 3 https://api.ipify.org || echo "127.0.0.1")
-            echo -e "${BLUE}-> Đã tự điền IP: $domain_or_ip${NC}"
+            echo -e "${BLUE}-> Đã tự điền ip: $domain_or_ip${NC}"
         else
             domain_or_ip="$input_domain"
         fi
 
         # 2.2 - TỰ ĐỘNG ĐIỀN & QUÉT TRÙNG PORT
-        read -p "Nhập Port (Bỏ trống hệ thống tự random & check trùng): " input_port
+        read -p "Nhập Port, để trống hệ thống tự random: " input_port
         local port=0
         if [ -z "$input_port" ]; then
             while true; do
@@ -179,12 +179,12 @@ add_node() {
         fi
 
         # 2.3 - TỰ ĐỘNG ĐIỀN SNI DÀNH CHO TLS/REALITY
-        read -p "Nhập SNI (Bỏ trống hệ thống lấy ngẫu nhiên tên miền sạch): " input_sni
+        read -p "Nhập sni để trống hệ thống lấy ngẫu nhiên: " input_sni
         local sni=""
         if [ -z "$input_sni" ]; then
             local sni_list=("www.cloudflare.com" "images.apple.com" "www.microsoft.com" "s0.awsstatic.com" "www.amazon.com")
             sni=${sni_list[$RANDOM % ${#sni_list[@]}]}
-            echo -e "${BLUE}-> Đã tự điền SNI: $sni${NC}"
+            echo -e "${BLUE}-> Đã tự điền sni: $sni${NC}"
         else
             sni="$input_sni"
         fi
@@ -267,9 +267,9 @@ fi
     if [ "$count" -eq 0 ]; then return; fi
 
     clear
-    echo -e "${GREEN}--- THIẾT LẬP USER CHO $count NODE ---${NC}"
+    echo -e "${GREEN}==== THIẾT LẬP USER CHO $count NODE ====${NC}"
     echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
-    read -p "Nhập Tên User (hoặc để trống): " username
+    read -p "Nhập Tên User: " username
 
     local users_json=$(cat "$USER_DB")
     local user_count=$(echo "$users_json" | jq '. | length')

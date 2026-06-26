@@ -6,6 +6,11 @@ source "${SCRIPTS_DIR}/utils.sh"
 
 check_root
 
+# Đường dẫn và tên file SSL cố định cho Xray
+CERT_DIR="/usr/local/etc/xray/certs"
+CERT_FILE="${CERT_DIR}/server.crt"
+KEY_FILE="${CERT_DIR}/server.key"
+
 show_ssl_menu() {
     clear
     echo -e "${BLUE}=======================================${NC}"
@@ -33,42 +38,36 @@ install_acme() {
 
 issue_wildcard_cf() {
     echo -e "${YELLOW}--- CẤP PHÁT SSL WILDCARD QUA CLOUDFLARE ---${NC}"
-    read -p "Nhập Cloudflare API Token (hoặc Global API Key): " cf_key
+    read -p "Nhập Cloudflare Global API Key: " cf_key
     read -p "Nhập Email tài khoản Cloudflare: " cf_email
     read -p "Nhập Domain chính (ví dụ: example.com): " domain
     
-    # Xuất biến cho acme.sh lưu trữ cấu hình
-    export CF_Token="$cf_key"
-    export CF_Account_Email="$cf_email"
+    # Xuất biến cho acme.sh sử dụng Global API Key
+    export CF_Key="$cf_key"
+    export CF_Email="$cf_email"
     
-    # Thiết lập biến trong acme.sh để dùng cho các lần sau
-    "$HOME/.acme.sh/acme.sh" --set-env --global CF_Token "$cf_key"
-    "$HOME/.acme.sh/acme.sh" --set-env --global CF_Account_Email "$cf_email"
-
     log_info "Đang xin chứng chỉ Wildcard cho *.$domain và $domain..."
     
     # Thực hiện xin chứng chỉ với DNS-01 challenge
     "$HOME/.acme.sh/acme.sh" --issue --dns dns_cf -d "$domain" -d "*.$domain"
     
     if [ $? -eq 0 ]; then
-        mkdir -p "${XRAY_CONFIG_DIR}/certs"
+        mkdir -p "$CERT_DIR"
         
-        # Cài đặt file vào đúng đường dẫn bạn yêu cầu
+        # Cài đặt file vào đường dẫn cố định
         "$HOME/.acme.sh/acme.sh" --install-cert -d "$domain" \
-            --key-file       "${XRAY_CONFIG_DIR}/certs/server.key" \
-            --cert-file      "${XRAY_CONFIG_DIR}/certs/server.crt" \
-            --fullchain-file "${XRAY_CONFIG_DIR}/certs/fullchain.crt" \
+            --key-file       "$KEY_FILE" \
+            --fullchain-file "$CERT_FILE" \
             --reloadcmd      "systemctl restart xray"
             
-        log_info "Cấp phát SSL thành công. File đã ghi đè tại: ${XRAY_CONFIG_DIR}/certs/"
+        log_info "Cấp phát SSL thành công. File đã ghi đè tại: $CERT_DIR"
     else
-        log_error "Cấp phát SSL thất bại. Kiểm tra lại API Token/Key và tên miền."
+        log_error "Cấp phát SSL thất bại. Kiểm tra lại Global API Key và tên miền."
     fi
     
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
-# (Giữ nguyên hàm issue_cert cũ hoặc đổi tên thành issue_standalone)
 issue_standalone() {
     echo -n "Nhập tên miền (Domain) cần cấp SSL: "
     read domain
@@ -86,12 +85,14 @@ issue_standalone() {
     "$HOME/.acme.sh/acme.sh" --issue -d "$domain" --standalone
     
     if [ $? -eq 0 ]; then
-        mkdir -p "${XRAY_CONFIG_DIR}/ssl"
+        mkdir -p "$CERT_DIR"
+        
+        # Cài đặt file vào cùng đường dẫn cố định với Wildcard
         "$HOME/.acme.sh/acme.sh" --install-cert -d "$domain" \
-            --key-file       "${XRAY_CONFIG_DIR}/ssl/${domain}.key"  \
-            --fullchain-file "${XRAY_CONFIG_DIR}/ssl/${domain}.crt"
+            --key-file       "$KEY_FILE"  \
+            --fullchain-file "$CERT_FILE"
             
-        log_info "Cấp phát SSL thành công. Đường dẫn: ${XRAY_CONFIG_DIR}/ssl/"
+        log_info "Cấp phát SSL thành công. Đường dẫn: $CERT_DIR"
     else
         log_error "Cấp phát SSL thất bại. Vui lòng kiểm tra lại DNS trỏ về IP máy chủ."
     fi
