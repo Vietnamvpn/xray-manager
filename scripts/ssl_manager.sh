@@ -31,6 +31,11 @@ install_acme() {
     else
         log_info "Bắt đầu cài đặt ACME.sh..."
         curl https://get.acme.sh | sh
+        
+        # Tự động set Let's Encrypt làm CA mặc định để tránh lỗi ZeroSSL EAB
+        log_info "Thiết lập Let's Encrypt làm CA mặc định..."
+        "$HOME/.acme.sh/acme.sh" --set-default-ca --server letsencrypt
+        
         log_info "Cài đặt ACME.sh hoàn tất."
     fi
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
