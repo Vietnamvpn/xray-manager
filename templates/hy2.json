@@ -5,7 +5,7 @@
     "version": 2,
     "clients": [
       {
-        "auth": "THAY_BANG_AUTH_KEY"
+        "auth": "AUTH_KEY"
       }
     ]
   },

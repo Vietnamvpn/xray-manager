@@ -284,22 +284,24 @@ fi
         
         echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
         
-        # Tự động nhận diện cấu trúc mảng trong template để map dữ liệu chuẩn
-        jq --argjson us "$users_json" '
-            map(
-                if .settings.users != null then
-                    .settings.users = ($us | map({password: .uuid, email: .email}))
-                elif .settings.clients != null then
-                    if .protocol == "vless" or .protocol == "vmess" then
-                        .settings.clients = ($us | map({id: .uuid, email: .email}))
-                    else
-                        .settings.clients = ($us | map({password: .uuid, email: .email}))
-                    end
-                elif .users != null then
-                    .users = ($us | map({password: .uuid, email: .email}))
-                else . end
-            )
-        ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
+    # Tự động nhận diện cấu trúc mảng trong template để map dữ liệu chuẩn
+jq --argjson us "$users_json" '
+    map(
+        if .settings.users != null then
+            .settings.users = ($us | map({password: .uuid, email: .email}))
+        elif .settings.clients != null then
+            if .protocol == "vless" or .protocol == "vmess" then
+                .settings.clients = ($us | map({id: .uuid, email: .email}))
+            elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                .settings.clients = ($us | map({auth: .uuid, email: .email}))
+            else
+                .settings.clients = ($us | map({password: .uuid, email: .email}))
+            end
+        elif .users != null then
+            .users = ($us | map({password: .uuid, email: .email}))
+        else . end
+    )
+' /tmp/session_nodes.json > /tmp/session_nodes_final.json
 
     # TRƯỜNG HỢP 2: NHẬP TÊN -> GÁN CỤ THỂ
     else
@@ -323,6 +325,8 @@ fi
                 elif .settings.clients != null then
                     if .protocol == "vless" or .protocol == "vmess" then
                         .settings.clients = [{"id": $cred, "email": $email}]
+                    elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                        .settings.clients = [{"auth": $cred, "email": $email}]
                     else
                         .settings.clients = [{"password": $cred, "email": $email}]
                     end
