@@ -92,10 +92,10 @@ add_node() {
         clear
         echo -e "${GREEN}==== THÊM NODE MỚI BẠN MUỐN ====${NC}"
         echo -e ""
-        echo -e "1. Thêm vless  | 2. Thêm vmess"
-        echo -e "3. Thêm trojan | 4. Thêm hy2"
-        echo -e "0. Hủy bỏ"
-        echo -e ""   
+        echo -e "1. Thêm vless  ${GREEN}|${NC} 2. Thêm vmess"
+        echo -e "3. Thêm trojan ${GREEN}|${NC} 4. Thêm hy2"
+        echo -e "0. ${RED}Hủy bỏ${NC}"
+        echo -e "${GREEN}--------------------------------${NC}"   
         read -p "Chọn giao thức (1-4): " proto_choice
         
         local protocol=""
