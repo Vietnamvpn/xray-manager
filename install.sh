@@ -2,15 +2,13 @@
 # Script cài đặt Xray-core và khởi tạo môi trường
 # bash <(curl -Ls https://raw.githubusercontent.com/Vietnamvpn/xray-manager/main/install.sh)
 
-CURRENT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-cd "$CURRENT_DIR"
-
-if [ -f "${CURRENT_DIR}/scripts/utils.sh" ]; then
-    source "${CURRENT_DIR}/scripts/utils.sh"
-else
-    echo "Không tìm thấy file scripts/utils.sh!"
-    exit 1
-fi
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0;37m' 
 
 # =================================================================
 # TRÌNH KÍCH HOẠT TẢI TỪ XA QUA URL (KHÔNG SỬA ĐOẠN NÀY)
