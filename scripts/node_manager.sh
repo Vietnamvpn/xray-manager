@@ -114,7 +114,7 @@ add_node() {
                 sleep 2; continue
             fi
 
-            echo -e "\n${GREEN}--- CÁC TRANSPORT KHẢ DỤNG CHO $protocol ---${NC}"
+            echo -e "\n${GREEN}Các Transport Khả Dụng Cho $protocol :${NC}"
             
             # Tự động quét file .json trong thư mục tương ứng
             # Ví dụ: templates/vless/ws.json -> ['ws']
