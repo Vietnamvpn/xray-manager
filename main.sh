@@ -240,7 +240,7 @@ show_menu() {
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "${BLUE}                 MENU QUẢN LÝ LINKSUB24H-XR 2026                     ${NC}"
     echo -e "${BLUE}======================================================================${NC}"
-    echo -e "${CYAN}  → Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
+    echo -e "${CYAN} Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
     echo -e " Phiên bản Xray-core: ${YELLOW}${xray_ver}${NC} | Trạng thái: ${status_color}${xray_status^^}${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "1. Quản Lý Người Dùng   |   6. Xóa Tất Cả Mã Nguồn"
