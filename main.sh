@@ -81,6 +81,8 @@ delete_all_source() {
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}===========================================================${NC}"
             echo -e "${GREEN}ĐÃ XÓA SẠCH MỌI DỮ LIỆU. HỆ THỐNG ĐÃ TRỞ VỀ TRẠNG THÁI GỐC.${NC}"
+            echo -e "${YELLOW}Cài lại bất cứ khi nào bạn muốn bằng link dưới đây:${NC}"
+            echo -e "${CYAN}bash <(curl -Ls https://raw.githubusercontent.com/Vietnamvpn/xray-manager/main/install.sh)${NC}"
             echo -e "${GREEN}===========================================================${NC}"
             exit 0
         else
