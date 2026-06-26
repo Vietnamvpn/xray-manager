@@ -15,7 +15,7 @@
       "serverNames": [
         "www.microsoft.com"
       ],
-      "privateKey": "THAY_BẰNG_PRIVATE_KEY_X25519_CỦA_ÔNG",
+      "privateKey": "PRIVATE_KEY_X25519",
       "shortIds": [
         "0123456789abcdef"
       ]

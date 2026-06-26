@@ -6,7 +6,15 @@
   },
   "streamSettings": {
     "network": "tcp",
-    "security": "tls"
+    "security": "tls",
+    "tlsSettings": {
+      "certificates": [
+        {
+          "certificateFile": "CERT_PATH_PLACEHOLDER",
+          "keyFile": "KEY_PATH_PLACEHOLDER"
+        }
+      ]
+    }
   },
   "tag": "vmess-tcp"
 }

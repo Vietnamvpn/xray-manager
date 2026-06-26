@@ -7,8 +7,19 @@
   "streamSettings": {
     "network": "ws",
     "security": "tls",
+    "tlsSettings": {
+      "certificates": [
+        {
+          "certificateFile": "CERT_PATH_PLACEHOLDER",
+          "keyFile": "KEY_PATH_PLACEHOLDER"
+        }
+      ]
+    },
     "wsSettings": {
-      "path": "/vmess-ws"
+      "path": "/ray",
+      "headers": {
+        "Host": "yourdomain.com"
+      }
     }
   },
   "tag": "vmess-ws"
