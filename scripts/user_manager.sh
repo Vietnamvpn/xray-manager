@@ -23,7 +23,6 @@ show_user_menu() {
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn: "
 }
-
 list_users() {
     clear
     echo -e "${GREEN}--- Danh Sách Users & Liên Kết Node ---${NC}"
@@ -53,18 +52,17 @@ list_users() {
         if [ -s "$NODE_DB" ]; then
             while read -r node_row; do
                 # Lấy UUID/Password/Auth thực tế (Tự động quét cả clients hoặc users)
-local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
-    (.settings.clients // .settings.users // [])[] 
-    | select(.email == $e) 
-    | (.id // .password // .auth) // empty
-')
+                local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
+                    (.settings.clients // .settings.users // [])[] 
+                    | select(.email == $e) 
+                    | (.id // .password // .auth) // empty
+                ')
                 
                 # Nếu User có tồn tại trong Node này thì tiến hành build link
                 if [ -n "$user_cred" ]; then
                     found_link=true
                     local protocol=$(echo "$node_row" | jq -r '.protocol')
                     local port=$(echo "$node_row" | jq -r '.port')
-                    local domain=$(echo "$node_row" | jq -r '.domain // ""')
                     local tag=$(echo "$node_row" | jq -r '.tag // ""')
                     
                     local net=$(echo "$node_row" | jq -r '.streamSettings.network // "tcp"')
@@ -96,6 +94,20 @@ local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
                         host=$(echo "$node_row" | jq -r '.streamSettings.wsSettings.headers.Host // ""')
                     elif [ "$net" == "grpc" ]; then
                         path=$(echo "$node_row" | jq -r '.streamSettings.grpcSettings.serviceName // ""')
+                    fi
+
+                    # [XỬ LÝ ĐỘNG ĐỊA CHỈ ĐƯỜNG TRUYỀN] 
+                    # Đọc từ trường .domain cũ nếu có, nếu không có sẽ tự động tính toán thông minh
+                    local domain=$(echo "$node_row" | jq -r '.domain // ""')
+                    if [ -z "$domain" ] || [ "$domain" == "null" ]; then
+                        if [ "$tls_type" == "tls" ] && [ -n "$sni" ] && [ "$sni" != "null" ]; then
+                            domain="$sni"  # Mượn SNI đối với TLS thường
+                        elif [ "$net" == "ws" ] && [ -n "$host" ] && [ "$host" != "null" ]; then
+                            domain="$host" # Mượn Host header đối với WebSocket
+                        else
+                            # Đối với Reality (SNI fake) hoặc TCP thuần, bốc IP Wan thực tế của VPS làm điểm kết nối
+                            domain=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "IP_CỦA_VPS")
+                        fi
                     fi
                     
                     # Ghép chuỗi URI dựa trên Protocol chuẩn Xray Client

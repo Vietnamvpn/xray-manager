@@ -214,39 +214,48 @@ add_node() {
 
         local tag="${protocol}-${port}"
 
-        # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
+
+    # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
     local obfs_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
     local cert_file="${XRAY_CONFIG_DIR}/certs/server.crt"
     local key_file="${XRAY_CONFIG_DIR}/certs/server.key"
 
-    # 2. Đóng gói Node (Tích hợp cả OBFS + Chứng chỉ + Reality)
-if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" \
-         --arg priv "$private_key" --arg pub "$public_key" \
-         --arg obfs "$obfs_pass" \
-         --arg cert "$cert_file" --arg key "$key_file" '
-        .port = ($p|tonumber) | 
-        .tag = $t | 
-        .domain = $dom |
-        (if $pub != "" then .publicKey = $pub else . end) |
-        (if .streamSettings.tlsSettings then 
-            .streamSettings.tlsSettings.serverName = $sni |
-            .streamSettings.tlsSettings.certificates[0].certificateFile = $cert |
-            .streamSettings.tlsSettings.certificates[0].keyFile = $key
-         else . end) | 
-        (if .streamSettings.realitySettings then 
-            .streamSettings.realitySettings.dest = ($sni + ":443") |
-            .streamSettings.realitySettings.serverName = $sni |
-            .streamSettings.realitySettings.serverNames = [$sni] | 
-            (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
-         else . end) |
-        (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .streamSettings.finalmask then
-            .streamSettings.finalmask.udp[0].settings.password = $obfs
-         else . end)
-    ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
-        echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
-        sleep 3
-        continue
-fi
+    # 2. Đóng gói Node (Tích hợp động theo từng giao thức: TLS, WS, Reality, Hysteria)
+    if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" \
+             --arg priv "$private_key" --arg pub "$public_key" \
+             --arg obfs "$obfs_pass" \
+             --arg cert "$cert_file" --arg key "$key_file" '
+            .port = ($p|tonumber) | 
+            .tag = $t | 
+            (if $pub != "" then .publicKey = $pub else . end) |
+            
+            (if (.streamSettings.security == "tls") or (.streamSettings.tlsSettings != null) then 
+                .streamSettings.tlsSettings.serverName = $sni |
+                .streamSettings.tlsSettings.certificates = [{
+                    "certificateFile": $cert,
+                    "keyFile": $key
+                }]
+             else . end) | 
+             
+            (if .streamSettings.wsSettings != null then 
+                .streamSettings.wsSettings.headers.Host = $sni
+             else . end) |
+             
+            (if .streamSettings.realitySettings then 
+                .streamSettings.realitySettings.dest = ($sni + ":443") |
+                .streamSettings.realitySettings.serverName = $sni |
+                .streamSettings.realitySettings.serverNames = [$sni] | 
+                (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
+             else . end) |
+             
+            (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .streamSettings.finalmask then
+                .streamSettings.finalmask.udp[0].settings.password = $obfs
+             else . end)
+        ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
+            echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
+            sleep 3
+            continue
+    fi
     jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
 
         echo -e "${GREEN}[OK] Đã cấu hình xong Node: $tag${NC}"
