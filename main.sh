@@ -37,10 +37,10 @@ status_check() {
 }
 
 delete_all_source() {
-    echo -e "${RED}=======================================================${NC}"
+    echo -e "${RED}=============================================================================${NC}"
     echo -e "${RED}CẢNH BÁO NGUY HIỂM: HÀNH ĐỘNG NÀY SẼ XÓA SẠCH MỌI DỮ LIỆU!${NC}"
     echo -e "${YELLOW}Bao gồm: Xray Service, Xray Core, SSL, User Data, Swap và chính script này.${NC}"
-    echo -e "${RED}=======================================================${NC}"
+    echo -e "${RED}==============================================================================${NC}"
     read -p "Bạn có chắc chắn muốn xóa tất cả không? (y/n): " confirm
     
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
@@ -79,9 +79,9 @@ delete_all_source() {
         rm -rf "$CURRENT_DIR"
         
         if [ $? -eq 0 ]; then
-            echo -e "${GREEN}=======================================================${NC}"
+            echo -e "${GREEN}===========================================================${NC}"
             echo -e "${GREEN}ĐÃ XÓA SẠCH MỌI DỮ LIỆU. HỆ THỐNG ĐÃ TRỞ VỀ TRẠNG THÁI GỐC.${NC}"
-            echo -e "${GREEN}=======================================================${NC}"
+            echo -e "${GREEN}===========================================================${NC}"
             exit 0
         else
             echo -e "${RED}Lỗi khi xóa thư mục mã nguồn!${NC}"
@@ -230,13 +230,18 @@ show_menu() {
     local xray_status=$(systemctl is-active xray)
     local status_color=$RED
     if [ "$xray_status" == "active" ]; then status_color=$GREEN; fi
+    # Lấy phiên bản Xray-core
+    local xray_ver="Chưa cài đặt"
+    if [ -f "/usr/local/bin/xray" ]; then
+        # Lấy dòng đầu tiên của lệnh 'xray version' và cắt lấy số phiên bản
+        xray_ver=$(/usr/local/bin/xray version | head -n 1 | awk '{print $2}')
+    fi
 
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "${BLUE}                 MENU QUẢN LÝ LINKSUB24H-XR 2026                     ${NC}"
     echo -e "${BLUE}======================================================================${NC}"
-    echo -e " Trạng thái Xray: ${status_color}${xray_status^^}${NC}"
     echo -e "${CYAN}  → Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
-    echo -e " Xray-core   : Phiên bản Mới nhất (Latest Release)"
+    echo -e " Phiên bản Xray-core: ${YELLOW}${xray_ver}${NC} | Trạng thái: ${status_color}${xray_status^^}${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "1. Quản Lý Người Dùng   |   6. Xóa Tất Cả Mã Nguồn"
     echo -e "2. Quản Lý Node Sever   |   7. Điều Khiển Xray"
