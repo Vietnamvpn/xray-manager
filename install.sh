@@ -19,8 +19,8 @@ REPO_URL="https://github.com/Vietnamvpn/xray-manager.git"
 if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     clear
     echo -e "${BLUE}=================================================================${NC}"
-    echo -e "${BLUE}            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026                 ${NC}"
-    echo -e "${BLUE}=================================================================${NC}"
+    echo -e "${BLUE}||            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026             ||${NC}"
+    echo -e ""
     echo -e "${CYAN}Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
     echo -e "${BLUE}=================================================================${NC}"
     echo ""
