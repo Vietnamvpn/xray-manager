@@ -52,12 +52,12 @@ list_users() {
         # Quét chéo Database Node để đối chiếu Email và xuất link
         if [ -s "$NODE_DB" ]; then
             while read -r node_row; do
-                # Lấy UUID/Password thực tế (Tự động quét cả clients hoặc users)
-                local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
-                    (.settings.clients // .settings.users // [])[] 
-                    | select(.email == $e) 
-                    | (.id // .password) // empty
-                ')
+                # Lấy UUID/Password/Auth thực tế (Tự động quét cả clients hoặc users)
+local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
+    (.settings.clients // .settings.users // [])[] 
+    | select(.email == $e) 
+    | (.id // .password // .auth) // empty
+')
                 
                 # Nếu User có tồn tại trong Node này thì tiến hành build link
                 if [ -n "$user_cred" ]; then
