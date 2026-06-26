@@ -14,7 +14,7 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     echo "            CHÀO MỪNG ĐẾN VỚI XRAY-MANAGER                       "
     echo "================================================================="
     echo " Tác giả     : Vietnamvpn"
-    echo " Website     : https://github.com/Vietnamvpn/xray-manager"
+    echo -e "${CYAN}  → Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
     echo " Xray-core   : Phiên bản Mới nhất (Latest Release)"
     echo "================================================================="
     echo ""
@@ -147,7 +147,7 @@ else
 fi
 
 # Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý
-ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/xray-manager
+ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/linksub24h-xr
 chmod +x /usr/local/bin/xray-manager
 
 echo "================================================================="
