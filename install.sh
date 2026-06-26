@@ -13,7 +13,6 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     echo "${BLUE}=================================================================${NC}"
     echo "${BLUE}            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026                 ${NC}"
     echo "${BLUE}=================================================================${NC}"
-    echo " Tác giả     : Vietnamvpn"
     echo -e "${CYAN}  → Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
     echo "${BLUE}=================================================================${NC}"
     echo ""
