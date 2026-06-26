@@ -139,7 +139,15 @@ local user_cred=$(echo "$node_row" | jq -r --arg e "$email" '
                             link="vmess://${b64}"
                             ;;
                         hy2|hysteria2|hysteria)
-                            link="hysteria2://${user_cred}@${domain}:${port}/?sni=${sni}&insecure=1#${tag}"
+                            # Bốc mật khẩu Salamander (nếu có)
+                            local obfs_pass=$(echo "$node_row" | jq -r '.streamSettings.finalmask.udp[0].settings.password // empty')
+                            
+                            link="hysteria2://${user_cred}@${domain}:${port}/?sni=${sni}&insecure=1"
+                            
+                            # Nếu có mật khẩu obfs thì mới thêm vào link
+                            [ -n "$obfs_pass" ] && link="${link}&obfs=salamander&obfs-password=${obfs_pass}"
+                            
+                            link="${link}#${tag}"
                             ;;
                     esac
                     echo -e " $link"
