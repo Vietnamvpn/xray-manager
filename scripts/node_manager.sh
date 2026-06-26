@@ -90,16 +90,17 @@ add_node() {
     
     while true; do
         clear
-        echo -e "${GREEN}--- THÊM NODE MẠNG MỚI ---${NC}"
+        echo -e "${GREEN}==== THÊM NODE MỚI BẠN MUỐN ====${NC}"
         echo -e ""
-        echo -e "1. vless  | 2. vmess"
-        echo -e "3. trojan | 4. hy2"
+        echo -e "1. Thêm vless  | 2. Thêm vmess"
+        echo -e "3. Thêm trojan | 4. Thêm hy2"
+        echo -e "0. Hủy bỏ"
         echo -e ""   
         read -p "Chọn giao thức (1-4): " proto_choice
         
         local protocol=""
         case $proto_choice in
-            1) protocol="vless" ;; 2) protocol="vmess" ;; 3) protocol="trojan" ;; 4) protocol="hy2" ;;
+            1) protocol="vless" ;; 2) protocol="vmess" ;; 3) protocol="trojan" ;; 4) protocol="hy2" ;; 0) return 0 ;;
             *) echo -e "${RED}[LỖI] Lựa chọn không hợp lệ!${NC}"; sleep 1; continue ;;
         esac
 
