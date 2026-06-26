@@ -22,19 +22,224 @@ fi
 check_root
 init_dirs
 
+# =================================================================
+# CÁC HÀM XỬ LÝ MỚI
+# =================================================================
+
+# 6. Xóa tất cả mã nguồn
+# Hàm phụ kiểm tra kết quả lệnh vừa chạy
+status_check() {
+    if [ $1 -eq 0 ]; then
+        echo -e "[${GREEN}THÀNH CÔNG${NC}] $2"
+    else
+        echo -e "[${RED}THẤT BẠI${NC}] $2 - Vui lòng kiểm tra lại quyền hạn hoặc tệp tin!"
+    fi
+}
+
+delete_all_source() {
+    echo -e "${RED}=======================================================${NC}"
+    echo -e "${RED}CẢNH BÁO NGUY HIỂM: HÀNH ĐỘNG NÀY SẼ XÓA SẠCH MỌI DỮ LIỆU!${NC}"
+    echo -e "${YELLOW}Bao gồm: Xray Service, Xray Core, SSL, User Data, Swap và chính script này.${NC}"
+    echo -e "${RED}=======================================================${NC}"
+    read -p "Bạn có chắc chắn muốn xóa tất cả không? (y/n): " confirm
+    
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo -e "\n${YELLOW}--- ĐANG THỰC HIỆN GỠ BỎ ---${NC}"
+        
+        # 1. Xóa Xray Service
+        systemctl stop xray >/dev/null 2>&1
+        systemctl disable xray >/dev/null 2>&1
+        rm -f /etc/systemd/system/xray.service
+        systemctl daemon-reload >/dev/null 2>&1
+        status_check $? "Gỡ bỏ Xray Service"
+        
+        # 2. Xóa Core & Config
+        rm -rf /usr/local/bin/xray
+        rm -rf /usr/local/etc/xray
+        status_check $? "Xóa Xray Core và cấu hình"
+        
+        # 3. Xóa Dữ liệu Manager & SSL
+        rm -rf /etc/xray-manager
+        rm -rf "$HOME/.acme.sh"
+        status_check $? "Xóa dữ liệu quản lý và SSL"
+        
+        # 4. Xóa Swap
+        if [ -f "/swapfile" ]; then
+            swapoff /swapfile >/dev/null 2>&1
+            rm -f /swapfile
+            sed -i '/\/swapfile/d' /etc/fstab >/dev/null 2>&1
+            status_check $? "Gỡ bỏ Swap file"
+        else
+            echo -e "[${BLUE}THÔNG TIN${NC}] Không tìm thấy Swap file để xóa."
+        fi
+
+        echo -e "${YELLOW}Đang tự hủy thư mục mã nguồn...${NC}"
+        # 5. Xóa thư mục script cuối cùng
+        # Lưu ý: Lệnh này sẽ kết thúc script ngay lập tức
+        rm -rf "$CURRENT_DIR"
+        
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}=======================================================${NC}"
+            echo -e "${GREEN}ĐÃ XÓA SẠCH MỌI DỮ LIỆU. HỆ THỐNG ĐÃ TRỞ VỀ TRẠNG THÁI GỐC.${NC}"
+            echo -e "${GREEN}=======================================================${NC}"
+            exit 0
+        else
+            echo -e "${RED}Lỗi khi xóa thư mục mã nguồn!${NC}"
+            exit 1
+        fi
+        
+    else
+        echo -e "${BLUE}Đã hủy lệnh xóa. Hệ thống an toàn.${NC}"
+    fi
+}
+
+# 7. Điều khiển Xray
+manage_xray() {
+    echo -e "1. Khởi chạy Xray"
+    echo -e "2. Tắt Xray"
+    echo -e "3. Khởi động lại Xray"
+    echo -e "4. Xóa Xray Core"
+    read -p "Chọn: " sub_choice
+    
+    echo -e "\n${YELLOW}Đang thực hiện lệnh...${NC}"
+    
+    case $sub_choice in
+        1)
+            systemctl start xray
+            status_check $? "Khởi chạy Xray"
+            ;;
+        2)
+            systemctl stop xray
+            status_check $? "Tắt Xray"
+            ;;
+        3)
+            systemctl restart xray
+            status_check $? "Khởi động lại Xray"
+            ;;
+        4)
+            systemctl stop xray >/dev/null 2>&1
+            rm -f /usr/local/bin/xray
+            status_check $? "Xóa Xray core"
+            ;;
+        *)
+            echo -e "${RED}Lựa chọn không hợp lệ.${NC}"
+            ;;
+    esac
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
+# 8. Bật/Tắt BBR
+toggle_bbr() {
+    echo -e "1. Bật BBR (Google BBR)"
+    echo -e "2. Tắt BBR"
+    read -p "Chọn: " sub_choice
+    
+    echo -e "\n${YELLOW}Đang áp dụng cấu hình kernel...${NC}"
+    
+    case $sub_choice in
+        1)
+            # Dọn dẹp cấu hình cũ trước khi thêm để tránh trùng lặp
+            sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
+            sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
+            
+            # Ghi cấu hình mới
+            echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+            echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+            
+            # Áp dụng
+            sysctl -p >/dev/null 2>&1
+            status_check $? "Bật BBR"
+            ;;
+        2)
+            # Dọn dẹp cấu hình
+            sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
+            sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
+            
+            # Áp dụng
+            sysctl -p >/dev/null 2>&1
+            status_check $? "Tắt BBR"
+            ;;
+        *)
+            echo -e "${RED}Lựa chọn không hợp lệ.${NC}"
+            ;;
+    esac
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
+# 9. Tạo bộ nhớ ảo Swap
+setup_swap() {
+    # Kiểm tra xem swap đã tồn tại chưa
+    if swapon --show | grep -q "/swapfile"; then
+        echo -e "${RED}[CẢNH BÁO] Swap đã tồn tại và đang hoạt động!${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+        return
+    fi
+
+    read -p "Nhập dung lượng Swap (ví dụ: 1G, 2G, 512M): " size
+    echo -e "\n${YELLOW}Đang thiết lập Swap dung lượng $size...${NC}"
+
+    # 1. Tạo file swap
+    fallocate -l "$size" /swapfile >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}[THẤT BẠI] Không thể tạo file swap. Vui lòng kiểm tra dung lượng ổ cứng còn trống.${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+        return
+    fi
+    echo -e "[${GREEN}THÀNH CÔNG${NC}] Tạo file swap"
+
+    # 2. Phân quyền và định dạng
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null 2>&1
+    status_check $? "Định dạng Swap (mkswap)"
+
+    # 3. Kích hoạt
+    swapon /swapfile >/dev/null 2>&1
+    status_check $? "Kích hoạt Swap"
+
+    # 4. Lưu vào fstab để tự động kích hoạt khi khởi động lại
+    if ! grep -q "/swapfile" /etc/fstab; then
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        status_check $? "Ghi cấu hình vào fstab (tự động bật khi khởi động)"
+    else
+        echo -e "[${BLUE}THÔNG TIN${NC}] Cấu hình Swap đã tồn tại trong fstab."
+    fi
+
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
+# 10. Trạng thái VPS
+check_vps() {
+    clear
+    echo -e "${BLUE}--- TRẠNG THÁI VPS ---${NC}"
+    free -h
+    df -h
+    uptime
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
 show_menu() {
     clear
-    echo -e "${BLUE}=======================================${NC}"
-    echo -e "${BLUE}      XRAY MANAGER MANAGEMENT CLI      ${NC}"
-    echo -e "${BLUE}=======================================${NC}"
-    echo -e "1. Quản lý người dùng (User Manager)"
-    echo -e "2. Quản lý Node (Node Manager)"
-    echo -e "3. Quản lý SSL (SSL Manager)"
-    echo -e "4. Đồng bộ API (API Sync)"
-    echo -e "5. Cập nhật mã nguồn (Update)"
+    # Kiểm tra trạng thái Xray
+    local xray_status=$(systemctl is-active xray)
+    local status_color=$RED
+    if [ "$xray_status" == "active" ]; then status_color=$GREEN; fi
+
+    echo -e "${BLUE}======================================================================${NC}"
+    echo -e "${BLUE}                      XRAY MANAGER MANAGEMENT CLI                     ${NC}"
+    echo -e " Trạng thái Xray: ${status_color}[${xray_status^^}]${NC}"
+    echo -e "${BLUE}======================================================================${NC}"
+    
+    # Sử dụng printf để căn chỉnh 2 cột (mỗi cột rộng 38 ký tự)
+    printf "%-38s %-38s\n" "1. Quản Lý Người Dùng" "6. ${RED}Xóa tất cả mã nguồn${NC}"
+    printf "%-38s %-38s\n" "2. Quản Lý Node Sever" "7. Điều khiển Xray"
+    printf "%-38s %-38s\n" "3. Quản Lý SSL"        "8. Bật/Tắt BBR"
+    printf "%-38s %-38s\n" "4. Đồng Bộ API"        "9. Tạo bộ nhớ ảo Swap"
+    printf "%-38s %-38s\n" "5. Cập Nhật Mã Nguồn"  "10. Xem trạng thái VPS"
+    
+    echo -e "${BLUE}======================================================================${NC}"
     echo -e "0. Thoát"
-    echo -e "${BLUE}=======================================${NC}"
-    echo -n "Nhập lựa chọn của bạn [0-5]: "
+    echo -e "${BLUE}======================================================================${NC}"
+    echo -n "Nhập lựa chọn của bạn: "
 }
 
 while true; do
@@ -81,6 +286,11 @@ while true; do
                 read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
             fi
             ;;
+        6) delete_all_source ;;
+        7) manage_xray ;;
+        8) toggle_bbr ;;
+        9) setup_swap ;;
+        10) check_vps ;;
         0)
             log_info "Thoát chương trình."
             exit 0
