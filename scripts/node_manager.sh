@@ -220,14 +220,17 @@ add_node() {
     local key_file="${XRAY_CONFIG_DIR}/certs/server.key"
 
     # 2. Đóng gói Node (Tích hợp cả OBFS + Chứng chỉ + Reality)
-if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" --arg dom "$domain_or_ip" \
+if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" \
          --arg priv "$private_key" --arg pub "$public_key" \
          --arg obfs "$obfs_pass" \
          --arg cert "$cert_file" --arg key "$key_file" '
         .port = ($p|tonumber) | 
         .tag = $t | 
-        .domain = $dom |
+        (if .protocol == "vmess" then .settings.clients[0].alterId = 0 else . end) |
         (if $pub != "" then .publicKey = $pub else . end) |
+        (if .streamSettings.network == "ws" and .streamSettings.wsSettings then 
+            .streamSettings.wsSettings.headers.Host = $sni 
+         else . end) |
         (if .streamSettings.tlsSettings then 
             .streamSettings.tlsSettings.serverName = $sni |
             .streamSettings.tlsSettings.certificates[0].certificateFile = $cert |
