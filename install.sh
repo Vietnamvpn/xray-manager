@@ -35,7 +35,7 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     fi
 
     echo -e ""
-    echo -e "${BLUE}=== Kiểm tra hệ điều hành và quyền quản trị ===${NC}"
+    echo -e "${BLUE}=== Đang kiểm tra hệ điều hành và quyền quản trị ===${NC}"
     
     # Kiểm tra quyền root
     if [ "$EUID" -ne 0 ]; then
@@ -58,7 +58,7 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
         exit 1
     fi
     
-    echo -e "${BLUE}=== Tải mã nguồn từ GitHub ===${NC}"
+    echo -e "${BLUE}=== Đang tải mã nguồn từ GitHub ===${NC}"
     if [ -d "$INSTALL_DIR" ]; then
         cd "$INSTALL_DIR" && git reset --hard HEAD && git pull
     else
@@ -160,7 +160,7 @@ ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/vvc-xr
 chmod +x /usr/local/bin/xray-manager
 
 echo -e "${BLUE}==========================================================${NC}"
-echo -e " CÀI ĐẶT THÀNH CÔNG!"
+echo -e "[${GREEN} CÀI ĐẶT THÀNH CÔNG!${NC}]"
 echo -e " Hệ thống Xray-core và Xray-Manager đã được thiết lập."
 echo -e " Chứng chỉ TLS Node đã sẵn sàng tại: ${XRAY_CONFIG_DIR}/certs/"
 echo -e "${BLUE}===========================================================${NC}"

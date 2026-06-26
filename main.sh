@@ -130,7 +130,7 @@ manage_xray() {
 
 # 8. Bật/Tắt BBR
 toggle_bbr() {
-    echo -e "1. Bật BBR (Google BBR)"
+    echo -e "1. Bật BBR"
     echo -e "2. Tắt BBR"
     read -p "Chọn: " sub_choice
     
@@ -210,7 +210,7 @@ setup_swap() {
 # 10. Trạng thái VPS
 check_vps() {
     clear
-    echo -e "${BLUE}--- TRẠNG THÁI VPS ---${NC}"
+    echo -e "${BLUE}TRẠNG THÁI VPS HIỆN TẠI:${NC}"
     free -h
     df -h
     uptime
@@ -238,17 +238,17 @@ show_menu() {
     fi
 
     echo -e "${BLUE}======================================================================${NC}"
-    echo -e "${BLUE}||                 MENU QUẢN LÝ LINKSUB24H-XR 2026                  ||${NC}"
+    echo -e "${YELLOW}||                 MENU QUẢN LÝ LINKSUB24H-XR 2026                  ||${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "${CYAN}Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
     echo -e " Phiên bản Xray-core: ${YELLOW}${xray_ver}${NC} | Trạng thái: ${status_color}${xray_status^^}${NC}"
     echo -e "${BLUE}======================================================================${NC}"
-    echo -e "1. Quản Lý Người Dùng   |   6. Xóa Tất Cả Mã Nguồn"
-    echo -e "2. Quản Lý Node Sever   |   7. Điều Khiển Xray"
-    echo -e "3. Quản Lý SSL          |   8. Bật/Tắt BBR"
-    echo -e "4. Đồng Bộ API          |   9. Tạo Bộ Nhớ Ảo Swap"
-    echo -e "5. Cập Nhật Mã Nguồn    |   10. Xem Trạng Thái VPS"
-    echo -e "0. Thoát                |   11. Xem Log Xray Trực Tiếp"
+    echo -e "${CYAN}1.${NC} Quản Lý Người Dùng   |   ${CYAN}6.${NC} Xóa Tất Cả Mã Nguồn"
+    echo -e "${CYAN}2.${NC} Quản Lý Node Sever   |   ${CYAN}7.${NC} Điều Khiển Xray"
+    echo -e "${CYAN}3.${NC} Quản Lý SSL          |   ${CYAN}8.${NC} Bật/Tắt BBR"
+    echo -e "${CYAN}4.${NC} Đồng Bộ API          |   ${CYAN}9.${NC} Tạo Bộ Nhớ Ảo Swap"
+    echo -e "${CYAN}5.${NC} Cập Nhật Mã Nguồn    |   ${CYAN}10.${NC} Xem Trạng Thái VPS"
+    echo -e "${CYAN}0.${NC} Thoát                |   ${CYAN}11.${NC} Xem Log Xray Trực Tiếp"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e ""
     echo -n "Nhập lựa chọn của bạn: "
