@@ -217,6 +217,13 @@ check_vps() {
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
+# 11. Xem log Xray trực tiếp
+view_xray_logs() {
+    echo -e "${YELLOW}Đang hiển thị log Xray... (Nhấn Ctrl+C để thoát)${NC}"
+    # Sử dụng journalctl để xem log service
+    journalctl -u xray -f
+}
+
 show_menu() {
     clear
     # Kiểm tra trạng thái Xray
@@ -228,16 +235,12 @@ show_menu() {
     echo -e "${BLUE}                      XRAY MANAGER MANAGEMENT CLI                     ${NC}"
     echo -e " Trạng thái Xray: ${status_color}[${xray_status^^}]${NC}"
     echo -e "${BLUE}======================================================================${NC}"
-    
-    # Sử dụng printf để căn chỉnh 2 cột (mỗi cột rộng 38 ký tự)
-    printf "%-38s %-38s\n" "1. Quản Lý Người Dùng" "6. ${RED}Xóa tất cả mã nguồn${NC}"
-    printf "%-38s %-38s\n" "2. Quản Lý Node Sever" "7. Điều khiển Xray"
-    printf "%-38s %-38s\n" "3. Quản Lý SSL"        "8. Bật/Tắt BBR"
-    printf "%-38s %-38s\n" "4. Đồng Bộ API"        "9. Tạo bộ nhớ ảo Swap"
-    printf "%-38s %-38s\n" "5. Cập Nhật Mã Nguồn"  "10. Xem trạng thái VPS"
-    
-    echo -e "${BLUE}======================================================================${NC}"
-    echo -e "0. Thoát"
+    echo -e "1. Quản Lý Người Dùng     |      6. ${RED}Xóa tất cả mã nguồn${NC}"
+    echo -e "2. Quản Lý Node Sever     |      7. Điều khiển Xray"
+    echo -e "3. Quản Lý SSL            |      8. Bật/Tắt BBR"
+    echo -e "4. Đồng Bộ API            |      9. Tạo bộ nhớ ảo Swap"
+    echo -e "5. Cập Nhật Mã Nguồn      |      10. Xem trạng thái VPS"
+    echo -e "0. Thoát                  |      11. Xem log Xray trực tiếp"
     echo -e "${BLUE}======================================================================${NC}"
     echo -n "Nhập lựa chọn của bạn: "
 }
@@ -291,6 +294,7 @@ while true; do
         8) toggle_bbr ;;
         9) setup_swap ;;
         10) check_vps ;;
+        11) view_xray_logs ;;
         0)
             log_info "Thoát chương trình."
             exit 0
