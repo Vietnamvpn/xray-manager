@@ -22,6 +22,9 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     echo -e "${BLUE}||            CHÀO MỪNG ĐẾN VỚI LINKSUB24H-XR 2026             ||${NC}"
     echo -e ""
     echo -e "${CYAN}Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
+    echo -e "Fanpage: ${CYAN}https://www.facebook.com/vpn2s${NC}"
+    echo -e "Mã nguồn đang trong quá trình phát triển và thử nghiệm."
+    echo -e "Vui lòng kiểm tra kỹ trước khi cài đặt trên hệ thống chính thức."
     echo -e "${BLUE}=================================================================${NC}"
     echo ""
     
