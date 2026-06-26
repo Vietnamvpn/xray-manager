@@ -2,6 +2,13 @@
 # Script cài đặt Xray-core và khởi tạo môi trường
 # bash <(curl -Ls https://raw.githubusercontent.com/Vietnamvpn/xray-manager/main/install.sh)
 
+if [ -f "${CURRENT_DIR}/scripts/utils.sh" ]; then
+    source "${CURRENT_DIR}/scripts/utils.sh"
+else
+    echo "Không tìm thấy file scripts/utils.sh!"
+    exit 1
+fi
+
 # =================================================================
 # TRÌNH KÍCH HOẠT TẢI TỪ XA QUA URL (KHÔNG SỬA ĐOẠN NÀY)
 # =================================================================
