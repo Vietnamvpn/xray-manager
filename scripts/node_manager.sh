@@ -316,9 +316,10 @@ add_node() {
     if [ "$count" -eq 0 ]; then return; fi
 
     clear
-    echo -e "${GREEN}==== THIẾT LẬP USER CHO $count NODE ====${NC}"
-    echo -e "${YELLOW}Lưu ý: Để trống để gán TẤT CẢ user hiện có vào Node.${NC}"
-    read -p "Nhập Tên User: " username
+    echo -e "${BLUE}======= THIẾT LẬP USER CHO $count NODE =======${NC}"
+    echo -e "${BLUE}               --------------                 ${NC}"
+    echo -e "${YELLOW}Lưu ý: Nếu bạn muốn gán tất cả user hiện có vào các node mới, hãy để trống khi được hỏi tên user.${NC}"
+    read -p "Nhập Tên User Bạn Muốn Thêm: " username
 
     local users_json=$(cat "$USER_DB")
     local user_count=$(echo "$users_json" | jq '. | length')
