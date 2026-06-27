@@ -122,7 +122,7 @@ list_users() {
                     local link=""
                     case $protocol in
                         vless|trojan)
-                            link="${protocol}://${user_cred}@${domain}:${port}?type=${net}"
+                            link="${protocol}://${user_cred}@${domain}:${port}?type=${net}&allowInsecure=1"
                             
                             # [QUAN TRỌNG] VLESS bắt buộc phải khai báo encryption=none
                             if [ "$protocol" == "vless" ]; then
