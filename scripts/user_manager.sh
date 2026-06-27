@@ -15,11 +15,12 @@ show_user_menu() {
     echo -e "${BLUE}=======================================${NC}"
     echo -e "${BLUE}||${NC}           ${YELLOW}USER MANAGER${NC}            ${BLUE}||${NC}"
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "1. ${CYAN}Xem danh sách Users & Link Node${NC}"
-    echo -e "2. ${CYAN}Thêm User mới${NC}"
+    echo -e "1. ${CYAN}Xem Danh Sách Users & Link Node${NC}"
+    echo -e "2. ${CYAN}Thêm User Mới${NC}"
     echo -e "3. ${CYAN}Xóa User${NC}"
-    echo -e "4. ${CYAN}Tắt/Mở mạng User${NC}"
-    echo -e "0. ${CYAN}Quay lại Menu chính${NC}"
+    echo -e "4. ${CYAN}Tắt/Mở Mạng User${NC}"
+    echo -e "5. ${CYAN}Reset Token User${NC}"
+    echo -e "0. ${RED}Quay Lại${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn: "
 }
@@ -375,6 +376,41 @@ toggle_user_status() {
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
+reset_user_token() {
+    echo -e "\n${YELLOW}--- RESET TOKEN (UUID/PASSWORD) USER ---${NC}"
+    echo -n "Nhập Email/Tên User cần reset token: "
+    read email
+    
+    # Kiểm tra user có tồn tại không
+    if ! jq -e --arg e "$email" '.[] | select(.email == $e)' "$USER_DB" >/dev/null 2>&1; then
+        echo -e "${RED}[LỖI] User '$email' không tồn tại!${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+        return
+    fi
+
+    local new_uuid=$(uuidgen)
+    
+    # Cập nhật UUID mới trong users.json
+    jq --arg e "$email" --arg u "$new_uuid" '
+        map(if .email == $e then .uuid = $u else . end)
+    ' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+    
+    # Cập nhật ID/Password mới trong nodes.json
+    jq --arg e "$email" --arg u "$new_uuid" '
+        map(
+            if .settings.clients != null then 
+                .settings.clients |= map(if .email == $e then .id = $u | .password = $u else . end)
+            elif .settings.users != null then 
+                .settings.users |= map(if .email == $e then .password = $u else . end)
+            else . end
+        )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+        
+    log_info "Đã reset token cho user: $email thành công."
+    apply_config
+    
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
 while true; do
     show_user_menu
     read -r choice
@@ -383,6 +419,7 @@ while true; do
         2) add_user ;;
         3) delete_user ;;
         4) toggle_user_status ;;
+        5) reset_user_token ;;
         0) break ;;
         *) log_error "Lựa chọn không hợp lệ!" ; sleep 1 ;;
     esac
