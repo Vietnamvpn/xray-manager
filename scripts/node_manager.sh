@@ -52,15 +52,28 @@ apply_config() {
     echo -e "${YELLOW}Đang khởi động lại dịch vụ Xray Core...${NC}"
     systemctl restart xray 2>/dev/null
     
-    # KIỂM TRA TRẠNG THÁI SỐNG/CHẾT THỰC TẾ CỦA TIẾN TRÌNH
-    sleep 1
-    if systemctl is-active --quiet xray; then
-        echo -e "${GREEN}==============================================${NC}"
+    # KIỂM TRA TRẠNG THÁI SỐNG/CHẾT THỰC TẾ CỦA TIẾN TRÌNH VỚI VÒNG LẶP KIỂM TRA
+    local retry=0
+    local max_retry=5
+    local success=false
+
+    while [ $retry -lt $max_retry ]; do
+        sleep 1
+        if systemctl is-active --quiet xray; then
+            success=true
+            break
+        fi
+        ((retry++))
+        echo -ne "${YELLOW}Đang đợi dịch vụ ổn định... (${retry}/${max_retry})${NC}\r"
+    done
+
+    if [ "$success" = true ]; then
+        echo -e "\n${GREEN}==============================================${NC}"
         echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"
         echo -e "${GREEN}==============================================${NC}"
         return 0
     else
-        echo -e "${RED}==============================================${NC}"
+        echo -e "\n${RED}==============================================${NC}"
         echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"
         echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"
         echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"
