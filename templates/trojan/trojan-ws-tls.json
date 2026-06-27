@@ -8,7 +8,7 @@
     "network": "ws",
     "security": "tls",
     "wsSettings": {
-      "path": "/trojan-ws"
+      "path": "/Linksub24h"
     }
   },
   "tag": "trojan-ws"
