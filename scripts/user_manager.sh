@@ -13,7 +13,7 @@ USER_DB="${INSTALL_DIR}/data/users.json"
 show_user_menu() {
     clear
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "${BLUE}||${NC}            ${YELLOW}USER MANAGER${NC}            ${BLUE}||${NC}"
+    echo -e "${BLUE}||${NC}           ${YELLOW}USER MANAGER${NC}            ${BLUE}||${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -e "1. ${CYAN}Xem danh sách Users & Link Node${NC}"
     echo -e "2. ${CYAN}Thêm User mới${NC}"
