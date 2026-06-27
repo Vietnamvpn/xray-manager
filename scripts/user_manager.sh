@@ -70,10 +70,18 @@ list_users() {
         local uuid=$(echo "$user_row" | jq -r '.uuid')
         local quota=$(echo "$user_row" | jq -r '.quota_gb')
         local status=$(echo "$user_row" | jq -r '.status')
+
+    # --- LOGIC ĐỔI MÀU TRẠNG THÁI ---
+local status_color="${NC}"
+if [[ "${status,,}" == "active" || "${status,,}" == "on" || "${status,,}" == "true" || "$status" == "1" ]]; then
+    status_color="${GREEN}${status}${NC}"
+else
+    status_color="${RED}${status}${NC}"
+fi
         
         echo -e ""
         echo -e "${BLUE}====================================================${NC}"
-        echo -e " ${YELLOW}User:${NC} $email | ${YELLOW}Quota:${NC} ${quota}GB | ${YELLOW}Trạng thái:${NC} $status"
+        echo -e " ${YELLOW}User:${NC} $email | ${YELLOW}Quota:${NC} ${quota}GB | ${YELLOW}Trạng thái:${NC} ${status_color}"
         echo -e "${BLUE}----------------------------------------------------${NC}"
         echo -e " ${GREEN}Các liên kết Node kết nối:${NC}"
         
