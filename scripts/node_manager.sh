@@ -73,10 +73,10 @@ show_node_menu() {
     echo -e "${BLUE}=======================================${NC}"
     echo -e "${BLUE}             NODE MANAGER              ${NC}"
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "1. Thêm Node Sever"
-    echo -e "2. Xóa Node Khỏi Hệ Thống"
-    echo -e "3. Cập Nhật Thông Tin Node"
-    echo -e "0. Quay Lại Menu Chính"
+    echo -e "${YELLOW}1.${NC} ${CYAN}Thêm Node Sever${NC}"
+    echo -e "${YELLOW}2.${NC} ${CYAN}Xóa Node Khỏi Hệ Thống${NC}"
+    echo -e "${YELLOW}3.${NC} ${CYAN}Cập Nhật Thông Tin Node${NC}"
+    echo -e "0. ${RED}Quay Lại Menu Chính${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn của bạn: "
 }
@@ -95,7 +95,7 @@ add_node() {
         echo -e "${YELLOW}1.${NC} Thêm vless"
         echo -e "${YELLOW}2.${NC} Thêm vmess"
         echo -e "${YELLOW}3.${NC} Thêm trojan"
-        echo -e "${YELLOW}4.${NC} Thêm hy2"
+        echo -e "${YELLOW}4.${NC} Thêm hysteria2"
         echo -e "0. ${RED}Hủy bỏ${NC}"
         echo -e "${GREEN}--------------------------------${NC}"   
         read -p "Chọn giao thức (1-4): " proto_choice

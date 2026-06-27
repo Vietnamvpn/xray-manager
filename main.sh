@@ -250,7 +250,7 @@ show_menu() {
     echo -e "3. ${CYAN}Quản Lý SSL${NC}          |   8. ${CYAN}Bật/Tắt BBR${NC}"
     echo -e "4. ${CYAN}Đồng Bộ API${NC}          |   9. ${CYAN}Tạo Bộ Nhớ Ảo Swap${NC}"
     echo -e "5. ${CYAN}Cập Nhật Mã Nguồn${NC}    |   10. ${CYAN}Xem Trạng Thái VPS${NC}"
-    echo -e "0. ${CYAN}Thoát${NC}                |   11. ${CYAN}Xem Log Xray Trực Tiếp${NC}"
+    echo -e "0. ${RED}Thoát${NC}                |   11. ${CYAN}Xem Log Xray Trực Tiếp${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e ""
     echo -n "Nhập lựa chọn của bạn: "
