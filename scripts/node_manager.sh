@@ -105,7 +105,8 @@ add_node() {
         esac
 
         local tpl_file=""
-        if [ "$protocol" != "hy2" ]; then
+        # Chỉ quét và hiển thị menu cho vless
+        if [ "$protocol" == "vless" ]; then
             local template_path="${TEMPLATES_DIR}/${protocol}"
             
             # Kiểm tra thư mục có tồn tại không
@@ -120,19 +121,8 @@ add_node() {
             # Ví dụ: templates/vless/ws.json -> ['ws']
             local options=($(ls "$template_path"/*.json 2>/dev/null | xargs -n 1 basename | sed 's/\.json//'))
             
-            # Lọc bỏ transport 'tcp' nếu giao thức là vmess hoặc trojan
-            if [[ "$protocol" == "vmess" || "$protocol" == "trojan" ]]; then
-                local filtered_opts=()
-                for opt in "${options[@]}"; do
-                    if [[ "$opt" != "tcp" ]]; then
-                        filtered_opts+=("$opt")
-                    fi
-                done
-                options=("${filtered_opts[@]}")
-            fi
-            
             if [ ${#options[@]} -eq 0 ]; then
-                echo -e "${RED}[LỖI] Thư mục $template_path không có file .json nào khả dụng!${NC}"
+                echo -e "${RED}[LỖI] Thư mục $template_path không có file .json nào!${NC}"
                 sleep 2; continue
             fi
 
@@ -148,7 +138,14 @@ add_node() {
                 fi
             done
         else
-            tpl_file="${TEMPLATES_DIR}/hy2.json"
+            # Các giao thức khác bỏ qua menu, trỏ thẳng tới file cấu hình mặc định
+            if [ "$protocol" == "hy2" ]; then
+                tpl_file="${TEMPLATES_DIR}/hy2.json"
+            elif [ "$protocol" == "vmess" ]; then
+                tpl_file="${TEMPLATES_DIR}/vmess/ws.json"
+            elif [ "$protocol" == "trojan" ]; then
+                tpl_file="${TEMPLATES_DIR}/trojan/ws.json"
+            fi
         fi
 
         if [ ! -f "$tpl_file" ]; then
