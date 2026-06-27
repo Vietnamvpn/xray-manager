@@ -120,8 +120,19 @@ add_node() {
             # Ví dụ: templates/vless/ws.json -> ['ws']
             local options=($(ls "$template_path"/*.json 2>/dev/null | xargs -n 1 basename | sed 's/\.json//'))
             
+            # Lọc bỏ transport 'tcp' nếu giao thức là vmess hoặc trojan
+            if [[ "$protocol" == "vmess" || "$protocol" == "trojan" ]]; then
+                local filtered_opts=()
+                for opt in "${options[@]}"; do
+                    if [[ "$opt" != "tcp" ]]; then
+                        filtered_opts+=("$opt")
+                    fi
+                done
+                options=("${filtered_opts[@]}")
+            fi
+            
             if [ ${#options[@]} -eq 0 ]; then
-                echo -e "${RED}[LỖI] Thư mục $template_path không có file .json nào!${NC}"
+                echo -e "${RED}[LỖI] Thư mục $template_path không có file .json nào khả dụng!${NC}"
                 sleep 2; continue
             fi
 
