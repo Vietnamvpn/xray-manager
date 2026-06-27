@@ -211,7 +211,7 @@ fi
         fi
         
         if [ "$found_link" = false ]; then
-            echo "    (User này chưa được gán vào Node nào để tạo link)"
+            echo "  (User này chưa được gán vào Node nào để tạo link)"
         fi
     done < <(jq -c '.[]' "$USER_DB" 2>/dev/null)
     
