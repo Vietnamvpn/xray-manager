@@ -68,12 +68,12 @@ apply_config() {
     done
 
     if [ "$success" = true ]; then
-        echo -e "\n${GREEN}--------------------------------------------${NC}"
+        echo -e ""
         echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"
         echo -e ""
         return 0
     else
-        echo -e "\n${RED}--------------------------------------------${NC}"
+        echo -e ""
         echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"
         echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"
         echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"
