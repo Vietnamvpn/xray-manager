@@ -488,8 +488,8 @@ delete_node() {
     clear
     echo -e "${RED}======================== GỠ BỎ CẤU HÌNH NODE =========================${NC}"
     echo -e "${BLUE}                           --------------                            ${NC}"
-    echo -e ""
     echo -e "${YELLOW}Lưu ý: Nếu để trống và nhấn Enter, TOÀN BỘ danh sách Node sẽ bị xóa!${NC}"
+    echo -e ""
     read -p "Nhập Port của Node muốn xóa: " target_port
     
     # TRƯỜNG HỢP 1: Để trống -> Xóa tất cả
