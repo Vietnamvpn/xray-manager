@@ -247,7 +247,8 @@ add_user() {
         echo -e "\n${YELLOW}--- THÊM USER VÀO NODE CỦA BẠN ---${NC}"
         echo -e "Nhập Port của Node muốn thêm user này vào."
         echo -e "Để trống sẽ thêm vào TẤT CẢ các Node."
-        read -p "Nhập Port: " target_port
+        echo -e ""
+        read -p "${GREEN}Nhập Port: ${NC}" target_port
 
         if [ -z "$target_port" ]; then
             echo -e "${BLUE}-> Đang thêm user vào TẤT CẢ các node...${NC}"
@@ -263,20 +264,40 @@ add_user() {
         fi
     done
 
-    # 3. Cập nhật vào nodes.json (Tự động nhận diện cấu trúc mảng)
+    # 3. Cập nhật vào nodes.json (Tự động nhận diện cấu trúc mảng & Protocol)
     if [ -z "$target_port" ]; then
         jq --arg e "$email" --arg u "$uuid" '
             map(
-                if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
-                elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
+                if .settings.clients != null then 
+                    if .protocol == "vless" or .protocol == "vmess" then
+                        .settings.clients += [{"id": $u, "email": $e}]
+                    elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                        .settings.clients += [{"auth": $u, "email": $e}]
+                    else
+                        .settings.clients += [{"password": $u, "email": $e}]
+                    end
+                elif .settings.users != null then 
+                    .settings.users += [{"password": $u, "email": $e}]
+                elif .users != null then
+                    .users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     else
         jq --arg e "$email" --arg u "$uuid" --arg p "$target_port" '
             map(
                 if .port == ($p|tonumber) then
-                    if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
-                    elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
+                    if .settings.clients != null then 
+                        if .protocol == "vless" or .protocol == "vmess" then
+                            .settings.clients += [{"id": $u, "email": $e}]
+                        elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                            .settings.clients += [{"auth": $u, "email": $e}]
+                        else
+                            .settings.clients += [{"password": $u, "email": $e}]
+                        end
+                    elif .settings.users != null then 
+                        .settings.users += [{"password": $u, "email": $e}]
+                    elif .users != null then
+                        .users += [{"password": $u, "email": $e}]
                     else . end
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
