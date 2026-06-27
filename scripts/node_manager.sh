@@ -260,7 +260,9 @@ add_node() {
     if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" \
              --arg priv "$private_key" --arg pub "$public_key" \
              --arg obfs "$obfs_pass" \
-             --arg cert "$cert_file" --arg key "$key_file" '
+             --arg cert "$cert_file" --arg key "$key_file" \
+             --arg domain "$domain_or_ip" '
+            (if has("domain") then .domain = $domain else . end) |
             .port = ($p|tonumber) | 
             .tag = $t | 
             (if $pub != "" then .publicKey = $pub else . end) |
