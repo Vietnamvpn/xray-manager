@@ -172,15 +172,23 @@ add_node() {
 
         echo -e "\n${YELLOW}Nhập Thông Số Node:${NC}"
         
-        # 2.1 - TỰ ĐỘNG ĐIỀN DOMAIN/IP
-        read -p "Nhập domain để trống sẽ là ip vps: " input_domain
+        # 2.1 - TỰ ĐỘNG ĐIỀN DOMAIN/IP (Đã nâng cấp điều kiện bắt buộc nhập cho WS)
         local domain_or_ip=""
-        if [ -z "$input_domain" ]; then
-            domain_or_ip=$(curl -s --max-time 3 https://api.ipify.org || echo "127.0.0.1")
-            echo -e "${BLUE}-> Đã tự điền ip: $domain_or_ip${NC}"
-        else
-            domain_or_ip="$input_domain"
-        fi
+        while true; do
+            read -p "Nhập domain để trống sẽ là ip vps: " input_domain
+            if [ -z "$input_domain" ]; then
+                if [[ "$transport" == *"ws"* || "$tpl_file" == *"ws"* ]]; then
+                    echo -e "${RED}[LỖI] Đối với Node WS, Domain là BẮT BUỘC và không được để trống!${NC}"
+                    continue
+                fi
+                domain_or_ip=$(curl -s --max-time 3 https://api.ipify.org || echo "127.0.0.1")
+                echo -e "${BLUE}-> Đã tự điền ip: $domain_or_ip${NC}"
+                break
+            else
+                domain_or_ip="$input_domain"
+                break
+            fi
+        done
 
         # 2.2 - TỰ ĐỘNG ĐIỀN & QUÉT TRÙNG PORT
         read -p "Nhập Port, để trống hệ thống tự random: " input_port
