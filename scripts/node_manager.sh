@@ -406,7 +406,8 @@ jq --argjson us "$users_json" '
 update_node() {
     clear
     echo -e "${BLUE}==============================================${NC}"
-    echo -e "${BLUE}||              CẬP NHẬT NODE                 ||${NC}"
+    echo -e "${BLUE}||             CẬP NHẬT NODE                ||${NC}"
+    echo -e "${BLUE}               --------------                 ${NC}"
     echo -e ""
     read -p "Nhập Port của Node muốn cập nhật: " target_port
 
