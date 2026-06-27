@@ -100,13 +100,21 @@ list_users() {
                     # Đọc từ trường .domain cũ nếu có, nếu không có sẽ tự động tính toán thông minh
                     local domain=$(echo "$node_row" | jq -r '.domain // ""')
                     if [ -z "$domain" ] || [ "$domain" == "null" ]; then
-                        if [ "$tls_type" == "tls" ] && [ -n "$sni" ] && [ "$sni" != "null" ]; then
-                            domain="$sni"  # Mượn SNI đối với TLS thường
+                        # 1. Nếu là Hysteria2: Bắt buộc lấy IP thực tế vì SNI thường là domain ảo (fake)
+                        if [[ "$protocol" == "hy2" || "$protocol" == "hysteria2" || "$protocol" == "hysteria" ]]; then
+                            domain=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "IP_CUA_VPS")
+                            
+                        # 2. Nếu là TLS thông thường (không phải Reality/Hysteria): Dùng SNI vì đó là domain thật
+                        elif [ "$tls_type" == "tls" ] && [ -n "$sni" ] && [ "$sni" != "null" ]; then
+                            domain="$sni"
+                            
+                        # 3. Nếu là WebSocket thuần không TLS: Mượn Host header
                         elif [ "$net" == "ws" ] && [ -n "$host" ] && [ "$host" != "null" ]; then
-                            domain="$host" # Mượn Host header đối với WebSocket
+                            domain="$host"
+                            
+                        # 4. Fallback cuối cùng cho TCP thuần hoặc Reality (SNI ảo)
                         else
-                            # Đối với Reality (SNI fake) hoặc TCP thuần, bốc IP Wan thực tế của VPS làm điểm kết nối
-                            domain=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "IP_CỦA_VPS")
+                            domain=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "IP_CUA_VPS")
                         fi
                     fi
                     
