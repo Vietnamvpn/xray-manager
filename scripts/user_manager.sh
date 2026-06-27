@@ -378,7 +378,7 @@ toggle_user_status() {
 
 reset_user_token() {
     echo -e "\n${YELLOW}--- RESET TOKEN (UUID/PASSWORD) USER ---${NC}"
-    echo -n "Nhập Tên User: "
+    echo -n "Nhập Email/Tên User cần reset token: "
     read email
     
     # Kiểm tra user có tồn tại không
@@ -395,13 +395,26 @@ reset_user_token() {
         map(if .email == $e then .uuid = $u else . end)
     ' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
     
-    # Cập nhật ID/Password mới trong nodes.json
+    # Cập nhật ID/Password/Auth mới trong nodes.json theo chuẩn Protocol
     jq --arg e "$email" --arg u "$new_uuid" '
         map(
+            . as $node |
             if .settings.clients != null then 
-                .settings.clients |= map(if .email == $e then .id = $u | .password = $u else . end)
+                .settings.clients |= map(
+                    if .email == $e then 
+                        if $node.protocol == "vless" or $node.protocol == "vmess" then
+                            {"id": $u, "email": $e}
+                        elif $node.protocol == "hysteria" or $node.protocol == "hy2" or $node.protocol == "hysteria2" then
+                            {"auth": $u, "email": $e}
+                        else
+                            {"password": $u, "email": $e}
+                        end
+                    else . end
+                )
             elif .settings.users != null then 
-                .settings.users |= map(if .email == $e then .password = $u else . end)
+                .settings.users |= map(if .email == $e then {"password": $u, "email": $e} else . end)
+            elif .users != null then
+                .users |= map(if .email == $e then {"password": $u, "email": $e} else . end)
             else . end
         )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
         
