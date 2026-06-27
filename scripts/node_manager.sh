@@ -85,7 +85,7 @@ apply_config() {
 show_node_menu() {
     clear
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "${BLUE}||           NODE MANAGER            ||${NC}"
+    echo -e "${BLUE}||${NC}           ${YELLOW}NODE MANAGER${NC}            ${BLUE}||${NC}"
     echo -e "${BLUE}             -------------             ${NC}"
     echo -e "${YELLOW}1.${NC} ${CYAN}Thêm Node Sever${NC}"
     echo -e "${YELLOW}2.${NC} ${CYAN}Xóa Node Khỏi Hệ Thống${NC}"
