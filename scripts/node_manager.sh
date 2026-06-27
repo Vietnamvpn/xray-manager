@@ -142,9 +142,9 @@ add_node() {
             if [ "$protocol" == "hy2" ]; then
                 tpl_file="${TEMPLATES_DIR}/hy2.json"
             elif [ "$protocol" == "vmess" ]; then
-                tpl_file="${TEMPLATES_DIR}/vmess/ws.json"
+                tpl_file="${TEMPLATES_DIR}/vmess/vmess-ws-tls.json"
             elif [ "$protocol" == "trojan" ]; then
-                tpl_file="${TEMPLATES_DIR}/trojan/ws.json"
+                tpl_file="${TEMPLATES_DIR}/trojan/trojan-ws-tls.json"
             fi
         fi
 
