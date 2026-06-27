@@ -103,7 +103,7 @@ add_node() {
         
         local protocol=""
         case $proto_choice in
-            1) protocol="vless" ;; 2) protocol="vmess" ;; 3) protocol="trojan" ;; 4) protocol="hy2" ;; 0) return 0 ;;
+            1) protocol="vless" ;; 2) protocol="vmess" ;; 3) protocol="trojan" ;; 4) protocol="hysteria2" ;; 0) return 0 ;;
             *) echo -e "${RED}[LỖI] Lựa chọn không hợp lệ!${NC}"; sleep 1; continue ;;
         esac
 
@@ -142,7 +142,7 @@ add_node() {
             done
         else
             # Các giao thức khác bỏ qua menu, trỏ thẳng tới file cấu hình mặc định
-            if [ "$protocol" == "hy2" ]; then
+            if [ "$protocol" == "hysteria2" ]; then
                 tpl_file="${TEMPLATES_DIR}/hy2.json"
             elif [ "$protocol" == "vmess" ]; then
                 tpl_file="${TEMPLATES_DIR}/vmess/vmess-ws-tls.json"
