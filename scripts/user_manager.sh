@@ -311,16 +311,18 @@ add_user() {
 }
 
 delete_user() {
-    echo -e "\n${YELLOW}--- XÓA USER ---${NC}"
-    echo -n "Nhập Tên User cần xóa để trống sẽ xóa TẤT CẢ: "
+    echo -e "\n${YELLOW}================= XÓA USER ================${NC}"
+    echo -e "${RED}Lưu ý:${NC} Nhập Email/Tên User cần xóa. Để trống sẽ xóa TẤT CẢ User."
+    echo -n "Nhập Tên User Cần Xóa: "
     read email
     
     # TRƯỜNG HỢP 1: XÓA TẤT CẢ
     if [ -z "$email" ]; then
-        echo -e "${RED}=====================================================${NC}"
+        echo -e ""
         echo -e "${RED}CẢNH BÁO: BẠN ĐANG CHỌN XÓA TẤT CẢ USER TRONG HỆ THỐNG!${NC}"
         echo -e "${RED}Hành động này không thể hoàn tác.${NC}"
-        echo -e "${RED}=====================================================${NC}"
+        echo -e ""
+        echo -e "${RED}-------------------------------------------------${NC}"
         read -p "Bạn có chắc chắn muốn xóa TẤT CẢ không? (y/n): " confirm
         
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
