@@ -71,6 +71,7 @@ list_users() {
         local quota=$(echo "$user_row" | jq -r '.quota_gb')
         local status=$(echo "$user_row" | jq -r '.status')
         
+        echo -e ""
         echo -e "${BLUE}====================================================${NC}"
         echo -e " ${YELLOW}User:${NC} $email | ${YELLOW}Quota:${NC} ${quota}GB | ${YELLOW}Trạng thái:${NC} $status"
         echo -e "${BLUE}----------------------------------------------------${NC}"
