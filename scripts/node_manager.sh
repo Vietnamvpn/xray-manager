@@ -405,7 +405,9 @@ jq --argjson us "$users_json" '
 
 update_node() {
     clear
-    echo -e "${YELLOW}--- CẬP NHẬT NODE ---${NC}"
+    echo -e "${BLUE}==============================================${NC}"
+    echo -e "${BLUE}||              CẬP NHẬT NODE                 ||${NC}"
+    echo -e ""
     read -p "Nhập Port của Node muốn cập nhật: " target_port
 
     # Kiểm tra tồn tại
@@ -424,11 +426,13 @@ update_node() {
     local is_ws=$(echo "$current_node" | jq -e '.streamSettings.wsSettings != null' >/dev/null 2>&1 && echo "true" || echo "false")
 
     echo -e "${BLUE}Đang cập nhật Node Port: $target_port${NC}"
+    echo -e "Domain hiện tại: $old_domain"
+    echo -e "SNI hiện tại: $old_sni"
     echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
 
-    read -p "Nhập Domain mới (Cũ: $old_domain): " new_domain
-    read -p "Nhập Port mới (Cũ: $target_port): " new_port
-    read -p "Nhập SNI mới (Cũ: $old_sni): " new_sni
+    read -p "Nhập Domain mới: " new_domain
+    read -p "Nhập Port mới: " new_port
+    read -p "Nhập SNI mới: " new_sni
 
     local final_domain="${new_domain:-$old_domain}"
     local final_port="${new_port:-$target_port}"
