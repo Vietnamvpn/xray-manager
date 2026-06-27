@@ -63,16 +63,16 @@ apply_config() {
     # KIỂM TRA TRẠNG THÁI SỐNG/CHẾT THỰC TẾ CỦA TIẾN TRÌNH
     sleep 1
     if systemctl is-active --quiet xray; then
-        echo -e "${GREEN}==============================================${NC}"
+        echo -e ""
         echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"
-        echo -e "${GREEN}==============================================${NC}"
+        echo -e "${GREEN}----------------------------------------${NC}"
         return 0
     else
-        echo -e "${RED}==============================================${NC}"
+        echo -e ""
         echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"
         echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"
         echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"
-        echo -e "${RED}==============================================${NC}"
+        echo -e "${RED}-----------------------------------------------${NC}"
         return 1
     fi
 }

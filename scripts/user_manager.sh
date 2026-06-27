@@ -244,7 +244,7 @@ add_user() {
     # 2. Vòng lặp chọn Node (Bắt nhập lại nếu sai)
     local target_port=""
     while true; do
-        echo -e "\n${YELLOW}--- THÊM USER VÀO NODE CỦA BẠN ---${NC}"
+        echo -e "\n${YELLOW}======== THÊM USER VÀO NODE CỦA BẠN ========${NC}"
         echo -e "Nhập Port của Node muốn thêm user này vào."
         echo -e "Để trống sẽ thêm vào TẤT CẢ các Node."
         echo -e ""
@@ -368,7 +368,7 @@ delete_user() {
 }
 
 toggle_user_status() {
-    echo -e "\n${YELLOW}--- TẮT/MỞ MẠNG USER ---${NC}"
+    echo -e "\n${YELLOW}======== TẮT/MỞ MẠNG USER ========${NC}"
     echo -n "Nhập Email/Tên User: "
     read email
     
@@ -425,7 +425,7 @@ toggle_user_status() {
 }
 
 reset_user_token() {
-    echo -e "\n${YELLOW}--- RESET TOKEN (UUID/PASSWORD) USER ---${NC}"
+    echo -e "\n${YELLOW}======== RESET TOKEN (UUID/PASSWORD) USER ========${NC}"
     echo -n "Nhập Email/Tên User cần reset token: "
     read email
     
