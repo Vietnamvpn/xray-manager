@@ -408,6 +408,9 @@ update_node() {
     local current_node=$(jq -c --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB")
     local old_domain=$(echo "$current_node" | jq -r '.domain')
     local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
+    
+    # Kiểm tra xem node có phải là WS không
+    local is_ws=$(echo "$current_node" | jq -e '.streamSettings.wsSettings != null' >/dev/null 2>&1 && echo "true" || echo "false")
 
     echo -e "${BLUE}Đang cập nhật Node Port: $target_port${NC}"
     echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
@@ -420,6 +423,15 @@ update_node() {
     local final_port="${new_port:-$target_port}"
     local final_sni="${new_sni:-$old_sni}"
 
+    # Kiểm tra điều kiện bắt buộc đối với WS
+    if [ "$is_ws" == "true" ]; then
+        if [ "$final_domain" != "$final_sni" ]; then
+            echo -e "${RED}[LỖI] Đây là node WS (WebSocket). Domain và SNI bắt buộc phải giống hệt nhau!${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để làm lại..."
+            return
+        fi
+    fi
+
     # Kiểm tra trùng port (ép kiểu khi so sánh)
     if [ "$final_port" != "$target_port" ]; then
         local dup_db=$(jq -e --arg p "$final_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
@@ -430,7 +442,7 @@ update_node() {
         fi
     fi
 
-    # Thực hiện Update (Đảm bảo giá trị Port mới được gán đúng là số)
+    # Thực hiện Update (Đảm bảo giá trị Port mới được gán đúng là số và đồng bộ Host header cho WS)
     if jq --arg p "$target_port" \
           --arg np "$final_port" \
           --arg d "$final_domain" \
@@ -440,6 +452,7 @@ update_node() {
             .port = ($np|tonumber) |
             .tag = (.protocol + "-" + $np) |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
+            (if .streamSettings.wsSettings then .streamSettings.wsSettings.headers.Host = $s else . end) |
             (if .streamSettings.realitySettings then 
                 .streamSettings.realitySettings.dest = ($s + ":443") |
                 .streamSettings.realitySettings.serverName = $s |
