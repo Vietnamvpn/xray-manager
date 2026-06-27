@@ -68,16 +68,16 @@ apply_config() {
     done
 
     if [ "$success" = true ]; then
-        echo -e "\n${GREEN}==============================================${NC}"
+        echo -e "\n${GREEN}--------------------------------------------${NC}"
         echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"
-        echo -e "${GREEN}==============================================${NC}"
+        echo -e ""
         return 0
     else
-        echo -e "\n${RED}==============================================${NC}"
+        echo -e "\n${RED}--------------------------------------------${NC}"
         echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"
         echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"
         echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"
-        echo -e "${RED}==============================================${NC}"
+        echo -e ""
         return 1
     fi
 }
@@ -316,8 +316,8 @@ add_node() {
     if [ "$count" -eq 0 ]; then return; fi
 
     clear
-    echo -e "${BLUE}======= THIẾT LẬP USER CHO $count NODE =======${NC}"
-    echo -e "${BLUE}               --------------                 ${NC}"
+    echo -e "${BLUE}=================================== THIẾT LẬP USER CHO $count NODE ================================${NC}"
+    echo -e "${BLUE}                                     ------------------------                                      ${NC}"
     echo -e "${YELLOW}Lưu ý: Nếu bạn muốn gán tất cả user hiện có vào các node mới, hãy để trống khi được hỏi tên user.${NC}"
     read -p "Nhập Tên User Bạn Muốn Thêm: " username
 
