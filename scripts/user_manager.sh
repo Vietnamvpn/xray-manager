@@ -390,11 +390,12 @@ toggle_user_status() {
         # Cập nhật status trong users.json
         jq --arg e "$email" 'map(if .email == $e then .status = "disabled" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         
-        # Xóa khỏi nodes.json (Tự động lọc tắt mạng theo mảng)
+        # Xóa khỏi nodes.json (Bổ sung thêm mảng .users)
         jq --arg e "$email" '
             map(
                 if .settings.clients != null then .settings.clients |= map(select(.email != $e))
                 elif .settings.users != null then .settings.users |= map(select(.email != $e))
+                elif .users != null then .users |= map(select(.email != $e))
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
             
@@ -407,11 +408,21 @@ toggle_user_status() {
         # Cập nhật status trong users.json
         jq --arg e "$email" 'map(if .email == $e then .status = "active" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         
-        # Thêm vào tất cả nodes.json (Tự động chọn mảng clients hoặc users)
+        # Thêm vào tất cả nodes.json theo chuẩn Protocol giống hàm add_user
         jq --arg e "$email" --arg u "$uuid" '
             map(
-                if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
-                elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
+                if .settings.clients != null then 
+                    if .protocol == "vless" or .protocol == "vmess" then
+                        .settings.clients += [{"id": $u, "email": $e}]
+                    elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                        .settings.clients += [{"auth": $u, "email": $e}]
+                    else
+                        .settings.clients += [{"password": $u, "email": $e}]
+                    end
+                elif .settings.users != null then 
+                    .settings.users += [{"password": $u, "email": $e}]
+                elif .users != null then
+                    .users += [{"password": $u, "email": $e}]
                 else . end
             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
             
