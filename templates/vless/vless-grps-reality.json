@@ -1,4 +1,5 @@
 {
+  "domain": "DOMAIN_PLACEHOLDER",
   "port": 443,
   "protocol": "vless",
   "settings": {
