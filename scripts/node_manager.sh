@@ -77,7 +77,7 @@ show_node_menu() {
     echo -e "${YELLOW}1.${NC} ${CYAN}Thêm Node Sever${NC}"
     echo -e "${YELLOW}2.${NC} ${CYAN}Xóa Node Khỏi Hệ Thống${NC}"
     echo -e "${YELLOW}3.${NC} ${CYAN}Cập Nhật Thông Tin Node${NC}"
-    echo -e "0. ${RED}Quay Lại Menu Chính${NC}"
+    echo -e "0. ${RED}Quay Lại${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn của bạn: "
 }
