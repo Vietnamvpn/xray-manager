@@ -408,7 +408,7 @@ toggle_user_status() {
         jq --arg e "$email" 'map(if .email == $e then .status = "active" else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
         
         # Thêm vào tất cả nodes.json (Tự động chọn mảng clients hoặc users)
-        jq --arg e "$email" --arg u "$uuid" '\
+        jq --arg e "$email" --arg u "$uuid" '
             map(
                 if .settings.clients != null then .settings.clients += [{"id": $u, "email": $e, "password": $u}]
                 elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}]
