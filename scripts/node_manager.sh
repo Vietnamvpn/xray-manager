@@ -460,10 +460,8 @@ update_node() {
     # Thực hiện Update (Chỉ update các trường cần thiết, KHÔNG thêm .domain nếu không tồn tại)
     if jq --arg p "$target_port" \
           --arg np "$final_port" \
-          --arg d "$final_domain" \
           --arg s "$final_sni" '
         map(if .port|tostring == $p then
-            .domain = $d |
             .port = ($np|tonumber) |
             .tag = (.protocol + "-" + $np) |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
