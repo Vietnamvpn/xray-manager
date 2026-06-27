@@ -189,16 +189,28 @@ add_node() {
             fi
         fi
 
-        # 2.3 - TỰ ĐỘNG ĐIỀN SNI DÀNH CHO TLS/REALITY
-        read -p "Nhập sni để trống hệ thống lấy ngẫu nhiên: " input_sni
+        # 2.3 - TỰ ĐỘNG ĐIỀN SNI DÀNH CHO TLS/REALITY (Đã nâng cấp điều kiện WS)
         local sni=""
-        if [ -z "$input_sni" ]; then
-            local sni_list=("www.cloudflare.com" "images.apple.com" "www.microsoft.com" "s0.awsstatic.com" "www.amazon.com")
-            sni=${sni_list[$RANDOM % ${#sni_list[@]}]}
-            echo -e "${BLUE}-> Đã tự điền sni: $sni${NC}"
-        else
-            sni="$input_sni"
-        fi
+        while true; do
+            read -p "Nhập sni để trống hệ thống lấy ngẫu nhiên: " input_sni
+            if [ -z "$input_sni" ]; then
+                local sni_list=("www.cloudflare.com" "images.apple.com" "www.microsoft.com" "s0.awsstatic.com" "www.amazon.com")
+                sni=${sni_list[$RANDOM % ${#sni_list[@]}]}
+                echo -e "${BLUE}-> Đã tự điền sni: $sni${NC}"
+            else
+                sni="$input_sni"
+            fi
+
+            # Kiểm tra riêng cho WS: domain/ip và sni phải giống hệt nhau
+            if [[ "$transport" == *"ws"* || "$tpl_file" == *"ws"* ]]; then
+                if [ "$domain_or_ip" != "$sni" ]; then
+                    echo -e "${RED}[LỖI] Đối với node WS (WebSocket), Domain và SNI phải giống hệt nhau!${NC}"
+                    echo -e "${YELLOW}Domain hiện tại bạn đã cung cấp là: $domain_or_ip${NC}"
+                    continue
+                fi
+            fi
+            break
+        done
 
         # 2.4 - TỰ ĐỘNG PHÁT HIỆN VÀ TẠO CẶP KHÓA X25519 CHO REALITY
         local private_key=""
