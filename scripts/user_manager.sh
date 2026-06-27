@@ -378,7 +378,7 @@ toggle_user_status() {
 
 reset_user_token() {
     echo -e "\n${YELLOW}--- RESET TOKEN (UUID/PASSWORD) USER ---${NC}"
-    echo -n "Nhập Email/Tên User cần reset token: "
+    echo -n "Nhập Tên User: "
     read email
     
     # Kiểm tra user có tồn tại không
