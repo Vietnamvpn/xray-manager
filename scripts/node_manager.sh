@@ -130,7 +130,7 @@ add_node() {
             fi
 
             # Hiển thị menu số tự động (1, 2, 3...)
-            PS3="${YELLOW}Nhập số tương ứng để chọn Transport: ${NC}"
+            PS3=$(echo -e "${YELLOW}Nhập số tương ứng để chọn Transport: ${NC}")
             select transport in "${options[@]}"; do
                 if [ -n "$transport" ]; then
                     tpl_file="${template_path}/${transport}.json"
