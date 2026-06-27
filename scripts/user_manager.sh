@@ -24,6 +24,7 @@ show_user_menu() {
     echo -e "${BLUE}=======================================${NC}"
     echo -n "Nhập lựa chọn: "
 }
+
 list_users() {
     clear
     echo -e "${GREEN}--- Danh Sách Users & Liên Kết Node ---${NC}"
@@ -35,7 +36,35 @@ list_users() {
         return
     fi
 
-    # Lặp qua từng user trong Database
+    # [BƯỚC 1]: Gọi API lấy IP và Quốc gia đúng 1 lần duy nhất trên cùng
+    local vps_ip=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "127.0.0.1")
+    local country=""
+    
+    if [ "$vps_ip" != "127.0.0.1" ]; then
+        country=$(curl -sS --max-time 2 "http://ip-api.com/line/$vps_ip?fields=country" 2>/dev/null | tr -d ' ' | tr -d '\r')
+    fi
+    
+    # Cứu hộ nếu API lỗi hoặc không có mạng
+    if [ -z "$country" ] || [ "$country" == "fail" ] || [[ "$country" == *"<!DOCTYPE"* ]]; then
+        country="Unknown"
+    fi
+
+    # [BƯỚC 2]: Tiền xử lý (Pre-process) toàn bộ Node để gán Tag và lưu vào RAM
+    declare -A precalc_tags
+    local node_idx=1
+    
+    if [ -s "$NODE_DB" ]; then
+        # Quét lấy toàn bộ Port của các Inbound/Node để làm khoá nhận diện và đánh số thứ tự
+        while read -r n_port; do
+            if [ -n "$n_port" ] && [ "$n_port" != "null" ]; then
+                local count_fmt=$(printf "%02d" $node_idx)
+                precalc_tags["$n_port"]="${country}-${count_fmt}"
+                ((node_idx++))
+            fi
+        done < <(jq -r '.[].port // empty' "$NODE_DB" 2>/dev/null)
+    fi
+
+    # [BƯỚC 3]: Lặp qua từng user trong Database
     while read -r user_row; do
         local email=$(echo "$user_row" | jq -r '.email')
         local uuid=$(echo "$user_row" | jq -r '.uuid')
@@ -64,7 +93,10 @@ list_users() {
                     found_link=true
                     local protocol=$(echo "$node_row" | jq -r '.protocol')
                     local port=$(echo "$node_row" | jq -r '.port')
-                    local tag=$(echo "$node_row" | jq -r '.tag // ""')
+                    
+                    # [XUẤT TAG]: Lấy trực tiếp từ mảng đã tính toán sẵn ở Bước 2 dựa vào Port
+                    local tag="${precalc_tags["$port"]}"
+                    [ -z "$tag" ] && tag="${country}-00" # Fallback phòng hờ lỗi
                     
                     local net=$(echo "$node_row" | jq -r '.streamSettings.network // "tcp"')
                     local tls_type=""
@@ -98,24 +130,17 @@ list_users() {
                     fi
 
                     # [XỬ LÝ ĐỘNG ĐỊA CHỈ ĐƯỜNG TRUYỀN] 
-                    # Đọc từ trường .domain cũ nếu có, nếu không có sẽ tự động tính toán thông minh
                     local domain=$(echo "$node_row" | jq -r '.domain // ""')
                     if [ -z "$domain" ] || [ "$domain" == "null" ]; then
-                        # 1. Nếu là Hysteria2: Bắt buộc lấy IP thực tế vì SNI thường là domain ảo (fake)
+                        # Trực tiếp sử dụng biến $vps_ip đã lấy ở BƯỚC 1 thay vì gọi lại curl
                         if [[ "$protocol" == "hy2" || "$protocol" == "hysteria2" || "$protocol" == "hysteria" ]]; then
-                            domain=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "IP_CUA_VPS")
-                            
-                        # 2. Nếu là TLS thông thường (không phải Reality/Hysteria): Dùng SNI vì đó là domain thật
+                            domain="$vps_ip"
                         elif [ "$tls_type" == "tls" ] && [ -n "$sni" ] && [ "$sni" != "null" ]; then
                             domain="$sni"
-                            
-                        # 3. Nếu là WebSocket thuần không TLS: Mượn Host header
                         elif [ "$net" == "ws" ] && [ -n "$host" ] && [ "$host" != "null" ]; then
                             domain="$host"
-                            
-                        # 4. Fallback cuối cùng cho TCP thuần hoặc Reality (SNI ảo)
                         else
-                            domain=$(curl -sS --max-time 2 ifconfig.me 2>/dev/null || echo "IP_CUA_VPS")
+                            domain="$vps_ip"
                         fi
                     fi
                     
