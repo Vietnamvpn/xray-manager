@@ -313,7 +313,7 @@ add_user() {
 delete_user() {
     echo -e "\n${YELLOW}================ XÓA USER ==============${NC}"
     echo -e "${RED}Lưu ý:${NC} Nhập Email/Tên User cần xóa. Để trống sẽ xóa TẤT CẢ User."
-    echo -n "Nhập Tên User Cần Xóa: "
+    echo -n "${CYAN}Nhập Tên User Cần Xóa:${NC}"
     read email
     
     # TRƯỜNG HỢP 1: XÓA TẤT CẢ
