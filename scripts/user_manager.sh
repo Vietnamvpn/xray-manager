@@ -248,7 +248,7 @@ add_user() {
         echo -e "Nhập Port của Node muốn thêm user này vào."
         echo -e "Để trống sẽ thêm vào TẤT CẢ các Node."
         echo -e ""
-        read -p "${GREEN}Nhập Port: ${NC}" target_port
+        read -p "${GREEN}Nhập Port:${NC}" target_port
 
         if [ -z "$target_port" ]; then
             echo -e "${BLUE}-> Đang thêm user vào TẤT CẢ các node...${NC}"
