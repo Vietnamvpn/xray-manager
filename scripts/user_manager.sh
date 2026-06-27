@@ -27,7 +27,7 @@ show_user_menu() {
 
 list_users() {
     clear
-    echo -e "${GREEN}--- Danh Sách Users & Liên Kết Node ---${NC}"
+    echo -e "${GREEN}Đang Liệt Kê Danh Sách Users & Liên Kết Node...${NC}"
     
     if [ ! -s "$USER_DB" ] || [ "$(jq '. | length' "$USER_DB" 2>/dev/null || echo 0)" -eq 0 ]; then
         echo "Không có User nào trong hệ thống."
