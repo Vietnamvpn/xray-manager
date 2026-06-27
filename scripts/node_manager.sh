@@ -230,12 +230,17 @@ add_node() {
             (if $pub != "" then .publicKey = $pub else . end) |
             
             (if (.streamSettings.security == "tls") or (.streamSettings.tlsSettings != null) then 
-                .streamSettings.tlsSettings.serverName = $sni |
                 .streamSettings.tlsSettings.certificates = [{
                     "certificateFile": $cert,
                     "keyFile": $key
-                }]
-             else . end) | 
+                }] |
+                
+                (if .protocol == "vmess" then
+                    del(.streamSettings.tlsSettings.serverName)
+                else
+                    .streamSettings.tlsSettings.serverName = $sni
+                end)
+             else . end) |
              
             (if .streamSettings.wsSettings != null then 
                 .streamSettings.wsSettings.headers.Host = $sni
