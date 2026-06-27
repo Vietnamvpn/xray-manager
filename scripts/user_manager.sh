@@ -368,7 +368,7 @@ delete_user() {
 }
 
 toggle_user_status() {
-    echo -e "\n${YELLOW}========== TẮT/MỞ MẠNG USER ==========${NC}"
+    echo -e "\n${YELLOW}========== TẮT/MỞ MẠNG USER ===========${NC}"
     echo -n "Nhập Email/Tên User: "
     read email
     
