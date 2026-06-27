@@ -408,7 +408,7 @@ update_node() {
     echo -e "${YELLOW}--- CẬP NHẬT NODE ---${NC}"
     read -p "Nhập Port của Node muốn cập nhật: " target_port
 
-    # CẬP NHẬT TẠI ĐÂY: Dùng (.port|tostring) để so sánh bất chấp kiểu dữ liệu
+    # Kiểm tra tồn tại
     local node_exists=$(jq -e --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
     
     if [ "$node_exists" == "no" ]; then
@@ -417,35 +417,49 @@ update_node() {
         return
     fi
 
-    # Lấy thông tin hiện tại - Kiểm tra thông minh hơn
+    # Lấy thông tin hiện tại
     local current_node=$(jq -c --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB")
-    
-    # Lấy Domain/SNI từ các vị trí cấu hình thực tế của Xray (TLS, Reality hoặc Header Host của WS)
-    local old_domain=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // .streamSettings.wsSettings.headers.Host // "N/A"')
-    local old_sni=$old_domain
-    
-    # Kiểm tra xem node có phải là WS không
+    local old_domain=$(echo "$current_node" | jq -r '.domain')
+    local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
     local is_ws=$(echo "$current_node" | jq -e '.streamSettings.wsSettings != null' >/dev/null 2>&1 && echo "true" || echo "false")
 
     echo -e "${BLUE}Đang cập nhật Node Port: $target_port${NC}"
-    echo -e "(Để trống nếu không muốn đổi giá trị cũ - Cũ: $old_domain)"
+    echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
 
-    read -p "Nhập Domain/SNI mới: " new_sni
+    read -p "Nhập Domain mới (Cũ: $old_domain): " new_domain
+    read -p "Nhập Port mới (Cũ: $target_port): " new_port
+    read -p "Nhập SNI mới (Cũ: $old_sni): " new_sni
 
+    local final_domain="${new_domain:-$old_domain}"
+    local final_port="${new_port:-$target_port}"
     local final_sni="${new_sni:-$old_sni}"
-    local final_port="$target_port" # Giữ nguyên port trừ khi muốn đổi, ở đây ta ưu tiên logic cập nhật SNI/Domain
 
     # Kiểm tra điều kiện bắt buộc đối với WS
-    if [ "$is_ws" == "true" ]; then
-        # WS yêu cầu Domain/Host phải khớp
-        echo -e "${YELLOW}Node WS: SNI mới sẽ được áp dụng làm Host header.${NC}"
+    if [ "$is_ws" == "true" ] && [ "$final_domain" != "$final_sni" ]; then
+        echo -e "${RED}[LỖI] Đây là node WS (WebSocket). Domain và SNI bắt buộc phải giống hệt nhau!${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để làm lại..."
+        return
     fi
 
-    # Thực hiện Update
+    # Kiểm tra trùng port
+    if [ "$final_port" != "$target_port" ]; then
+        local dup_db=$(jq -e --arg p "$final_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+        if [ "$dup_db" == "yes" ]; then
+            echo -e "${RED}[LỖI] Port $final_port đã có Node khác sử dụng!${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+            return
+        fi
+    fi
+
+    # Thực hiện Update (Chỉ update các trường cần thiết, KHÔNG thêm .domain nếu không tồn tại)
     if jq --arg p "$target_port" \
+          --arg np "$final_port" \
+          --arg d "$final_domain" \
           --arg s "$final_sni" '
         map(if .port|tostring == $p then
-            .tag = (.protocol + "-" + (.port|tostring)) |
+            .domain = $d |
+            .port = ($np|tonumber) |
+            .tag = (.protocol + "-" + $np) |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
             (if .streamSettings.wsSettings then .streamSettings.wsSettings.headers.Host = $s else . end) |
             (if .streamSettings.realitySettings then 
@@ -455,7 +469,7 @@ update_node() {
              else . end)
         else . end)
     ' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"; then
-        echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật cấu hình cho Node $target_port${NC}"
+        echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật Node $target_port -> $final_port${NC}"
     else
         echo -e "${RED}[LỖI] Cập nhật file JSON thất bại.${NC}"
         rm -f "${NODE_DB}.tmp"
