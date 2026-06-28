@@ -44,14 +44,21 @@ sync_process() {
     local stats=$(xray api statsquery --server=127.0.0.1:${XRAY_API_PORT} 2>/dev/null || echo "{}")
 
     # 3. Lọc IP User đang online thời gian thực từ access.log
-    online_connections=$(tail -n 500 "$LOG_FILE" | grep "accepted" | grep -v "127.0.0.1" | while read -r line; do
+    # Lọc log lấy IP và User - CHỈ LẤY USER CÓ EMAIL
+    online_connections=$(tail -n 500 "$LOG_FILE" | grep "accepted" | grep -v "127.0.0.1" | grep "email:" | while read -r line; do
+        # 1. Trích xuất IP
         ip=$(echo "$line" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n1)
-        user=$(echo "$line" | grep -oP 'email: \K\S+' || echo "$line" | grep -oP '\[\K[^ \]]+' | head -n1)
-        if [ -n "$ip" ]; then
+        
+        # 2. Trích xuất User (Chỉ lấy email)
+        user=$(echo "$line" | grep -oP 'email: \K\S+')
+        
+        # 3. Tạo JSON object nếu tìm thấy cả IP và User
+        if [ -n "$ip" ] && [ -n "$user" ]; then
             printf '{"ip": "%s", "user": "%s"}' "$ip" "$user"
         fi
     done | jq -s -c 'unique')
     
+    # Nếu rỗng thì trả về mảng rỗng
     [ -z "$online_connections" ] && online_connections="[]"
 
     local payload=$(jq -n \
