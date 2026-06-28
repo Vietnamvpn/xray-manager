@@ -243,7 +243,7 @@ show_menu() {
     echo -e "${BLUE}||${NC}${YELLOW}                 MENU QUẢN LÝ LINKSUB24H-XR 2026                  ${NC}${BLUE}||${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "${CYAN}Tác giả:${NC} Vietnamvpn | ${CYAN}Website:${NC} https://linksub24h.com"
-    echo -e " Phiênbản Xray-core: ${YELLOW}${xray_ver}${NC} | Trạng thái: ${status_color}${xray_status^^}${NC}"
+    echo -e " Phiên bản Xray-core: ${YELLOW}${xray_ver}${NC} | Trạng thái: ${status_color}${xray_status^^}${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e "1. ${CYAN}Quản Lý Người Dùng${NC}   |   6. ${RED}Xóa Tất Cả Mã Nguồn${NC}"
     echo -e "2. ${CYAN}Quản Lý Node Sever${NC}   |   7. ${CYAN}Điều Khiển Xray${NC}"

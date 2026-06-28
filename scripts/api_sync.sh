@@ -46,7 +46,7 @@ sync_process() {
     # 3. Lọc IP User đang online thời gian thực từ access.log
     local online_ips="[]"
     if [ -f "$LOG_FILE" ]; then
-        online_ips=$(tail -n 500 "$LOG_FILE" | grep "accepted" | awk '{print $3}' | cut -d: -f1 | sort -u | jq -R . | jq -s . || echo "[]")
+        online_ips=$(tail -n 500 "$LOG_FILE" | grep "accepted" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -v '127.0.0.1' | sort -u | jq -R . | jq -s . || echo "[]")
     fi
 
     local payload=$(jq -n \
