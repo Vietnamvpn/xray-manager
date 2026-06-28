@@ -44,17 +44,22 @@ sync_process() {
     local stats=$(xray api statsquery --server=127.0.0.1:${XRAY_API_PORT} 2>/dev/null || echo "{}")
 
     # 3. Lọc IP User đang online thời gian thực từ access.log
-    local online_ips="[]"
-    if [ -f "$LOG_FILE" ]; then
-        online_ips=$(tail -n 500 "$LOG_FILE" | grep "accepted" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -v '127.0.0.1' | sort -u | jq -R . | jq -s . || echo "[]")
-    fi
+    online_connections=$(tail -n 500 "$LOG_FILE" | grep "accepted" | grep -v "127.0.0.1" | while read -r line; do
+        ip=$(echo "$line" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n1)
+        user=$(echo "$line" | grep -oP 'email: \K\S+' || echo "$line" | grep -oP '\[\K[^ \]]+' | head -n1)
+        if [ -n "$ip" ]; then
+            printf '{"ip": "%s", "user": "%s"}' "$ip" "$user"
+        fi
+    done | jq -s -c 'unique')
+    
+    [ -z "$online_connections" ] && online_connections="[]"
 
     local payload=$(jq -n \
         --arg cpu "$cpu" \
         --arg mem "$mem" \
         --argjson stats "$stats" \
-        --argjson ips "$online_ips" \
-        '{status: "online", cpu: $cpu, ram: $mem, traffic: $stats, active_ips: $ips}')
+        --argjson connections "$online_connections" \
+        '{status: "online", cpu: $cpu, ram: $mem, traffic: $stats, active_connections: $connections}')
 
     # Ghi xuất dữ liệu ra file log để kiểm tra (Test Output)
     echo "$payload" | jq . > "$TEST_LOG"
