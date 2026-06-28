@@ -35,30 +35,30 @@ EOF
     sleep 2
 }
 
+push_admin_nodes() {
+    if [ -n "$API_DOMAIN" ] && [ -n "$API_KEY" ]; then
+        local admin_nodes=$(jq -c 'map(select(.name == "admin"))' "$NODE_DB")
+        curl -s -X POST "${API_DOMAIN}:${API_PORT}/api/node/sync-admin" \
+             -H "Authorization: Bearer ${API_KEY}" \
+             -H "Content-Type: application/json" \
+             -d "$admin_nodes" > /dev/null
+    fi
+}
+
 sync_process() {
-    # 1. Thu thập trạng thái hệ thống (Tín hiệu sống, CPU, RAM)
+    # 1. Thu thập dữ liệu hệ thống
     local cpu=$(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')
     local mem=$(free -m | awk 'NR==2{printf "%.0f", $3*100/$2}')
-    
-    # 2. Lấy dữ liệu lưu lượng User (Uplink/Downlink) từ Core Xray
     local stats=$(xray api statsquery --server=127.0.0.1:${XRAY_API_PORT} 2>/dev/null || echo "{}")
 
-    # 3. Lọc IP User đang online thời gian thực từ access.log
-    # Lọc log lấy IP và User - CHỈ LẤY USER CÓ EMAIL
+    # 2. Lọc IP User đang online từ access.log (Logic từ file cũ)
     online_connections=$(tail -n 500 "$LOG_FILE" | grep "accepted" | grep -v "127.0.0.1" | grep "email:" | while read -r line; do
-        # 1. Trích xuất IP
         ip=$(echo "$line" | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -n1)
-        
-        # 2. Trích xuất User (Chỉ lấy email)
         user=$(echo "$line" | grep -oP 'email: \K\S+')
-        
-        # 3. Tạo JSON object nếu tìm thấy cả IP và User
         if [ -n "$ip" ] && [ -n "$user" ]; then
             printf '{"ip": "%s", "user": "%s"}' "$ip" "$user"
         fi
     done | jq -s -c 'unique')
-    
-    # Nếu rỗng thì trả về mảng rỗng
     [ -z "$online_connections" ] && online_connections="[]"
 
     local payload=$(jq -n \
@@ -68,60 +68,49 @@ sync_process() {
         --argjson connections "$online_connections" \
         '{status: "online", cpu: $cpu, ram: $mem, traffic: $stats, active_connections: $connections}')
 
-    # Ghi xuất dữ liệu ra file log để kiểm tra (Test Output)
+    # Ghi log test đầy đủ
     echo "$payload" | jq . > "$TEST_LOG"
 
-    # Nếu chưa cấu hình API Domain/Key thì dừng ở đây, không gửi request HTTP
-    if [ -z "$API_DOMAIN" ] || [ -z "$API_KEY" ]; then
-        return 0
-    fi
+    # 3. Đẩy Admin Nodes và Payload lên Web
+    push_admin_nodes
+    
+    if [ -n "$API_DOMAIN" ] && [ -n "$API_KEY" ]; then
+        curl -s -X POST "${API_DOMAIN}:${API_PORT}/api/node/sync-push" \
+             -H "Authorization: Bearer ${API_KEY}" \
+             -H "Content-Type: application/json" \
+             -d "$payload" > /dev/null
 
-    # 4. Push dữ liệu (Đẩy log và trạng thái lên web trung tâm)
-    curl -s -X POST "${API_DOMAIN}:${API_PORT}/api/node/sync-push" \
-         -H "Authorization: Bearer ${API_KEY}" \
-         -H "Content-Type: application/json" \
-         -d "$payload" > /dev/null
+        # 4. Pull lệnh từ web
+        local response=$(curl -s -X GET "${API_DOMAIN}:${API_PORT}/api/node/users-pull" \
+             -H "Authorization: Bearer ${API_KEY}")
 
-    # 5. Pull dữ liệu (Nhận lệnh tạo/xóa/sửa user từ web)
-    local response=$(curl -s -X GET "${API_DOMAIN}:${API_PORT}/api/node/users-pull" \
-         -H "Authorization: Bearer ${API_KEY}")
+        if echo "$response" | jq -e . >/dev/null 2>&1; then
+            local action=$(echo "$response" | jq -r '.action')
+            local email=$(echo "$response" | jq -r '.email')
+            local uuid=$(echo "$response" | jq -r '.uuid')
+            local status=$(echo "$response" | jq -r '.status // "active"')
 
-    if echo "$response" | jq -e . >/dev/null 2>&1; then
-        local current_md5=$(md5sum "$USER_DB" 2>/dev/null | awk '{print $1}')
-        echo "$response" > "${USER_DB}.tmp"
-        local new_md5=$(md5sum "${USER_DB}.tmp" | awk '{print $1}')
-
-        # Chỉ áp dụng và khởi động lại Xray nếu danh sách user từ web có sự thay đổi
-        if [ "$current_md5" != "$new_md5" ]; then
-            mv "${USER_DB}.tmp" "$USER_DB"
-            
-            # Lọc các user có trạng thái hoạt động
-            local active_users=$(jq '[.[] | select(.status == "active" or .status == "on" or .status == "true" or .status == "1")]' "$USER_DB")
-            
-            # Đồng bộ cấu trúc dữ liệu user vào nodes.json theo chuẩn giao thức
-            jq --argjson users "$active_users" '
-                map(
-                    . as $node |
-                    if .settings.clients != null then 
-                        .settings.clients = [
-                            $users[] | 
-                            if $node.protocol == "vless" or $node.protocol == "vmess" then {"id": .uuid, "email": .email}
-                            elif $node.protocol == "hysteria" or $node.protocol == "hy2" or $node.protocol == "hysteria2" then {"auth": .uuid, "email": .email}
-                            else {"password": .uuid, "email": .email} end
-                        ]
-                    elif .settings.users != null then 
-                        .settings.users = [ $users[] | {"password": .uuid, "email": .email} ]
-                    elif .users != null then
-                        .users = [ $users[] | {"password": .uuid, "email": .email} ]
-                    else . end
-                )
-            ' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
-
-            if command -v apply_config >/dev/null 2>&1; then
-                apply_config
-            fi
-        else
-            rm -f "${USER_DB}.tmp"
+            case "$action" in
+                "ADD")
+                    jq --arg e "$email" --arg u "$uuid" '. += [{"email": $e, "uuid": $u, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+                    jq --arg e "$email" --arg u "$uuid" 'map(if .settings.clients != null then if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}] elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then .settings.clients += [{"auth": $u, "email": $e}] else .settings.clients += [{"password": $u, "email": $e}] end elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}] elif .users != null then .users += [{"password": $u, "email": $e}] else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    apply_config
+                    ;;
+                "DELETE")
+                    jq --arg e "$email" 'del(.[] | select(.email == $e))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+                    jq --arg e "$email" 'map(if .settings.clients != null then .settings.clients |= map(select(.email != $e)) elif .settings.users != null then .settings.users |= map(select(.email != $e)) else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    apply_config
+                    ;;
+                "TOGGLE")
+                    jq --arg e "$email" --arg s "$status" 'map(if .email == $e then .status = $s else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+                    if [ "$status" == "active" ]; then
+                        jq --arg e "$email" --arg u "$uuid" 'map(if .settings.clients != null then if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}] elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then .settings.clients += [{"auth": $u, "email": $e}] else .settings.clients += [{"password": $u, "email": $e}] end elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}] elif .users != null then .users += [{"password": $u, "email": $e}] else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    else
+                        jq --arg e "$email" 'map(if .settings.clients != null then .settings.clients |= map(select(.email != $e)) elif .settings.users != null then .settings.users |= map(select(.email != $e)) else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    fi
+                    apply_config
+                    ;;
+            esac
         fi
     fi
 }
@@ -144,11 +133,11 @@ show_menu() {
            sync_process 
            echo "Đã ghi dữ liệu test vào: $TEST_LOG"
            if [ -n "$API_DOMAIN" ] && [ -n "$API_KEY" ]; then
-               echo "Đã hoàn tất đồng bộ với Web!"
+               echo "Đã đồng bộ admin nodes và kiểm tra lệnh từ Web thành công!"
            else
-               echo "(Chưa cấu hình API nên chỉ xuất file log test, không gửi lên Web)"
+               echo "(Chưa cấu hình API, chỉ ghi file log test)"
            fi
-           sleep 3
+           sleep 2
            ;;
         0) exit 0 ;;
         *) echo "Lựa chọn không hợp lệ!" ; sleep 1 ;;
