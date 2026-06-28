@@ -17,14 +17,11 @@ xray-manager/
 │   │
 │   ├── vless/                  # [VLESS] Cấu hình cho VLESS.
 │   │   ├── ws.json             # Mẫu VLESS + WebSocket.
-│   │   ├── xhttp.json          # Mẫu VLESS + XHTTP.
 │   │   └── grpc.json           # Mẫu VLESS + gRPC.
 │   ├── vmess/                  # [VMESS] Cấu hình cho VMESS.
-│   │   ├── ws.json             # Mẫu VMESS + WebSocket.
-│   │   └── tcp.json            # Mẫu VMESS + TCP.
+│   │   └── ws.json             # Mẫu VMESS + WebSocket.   
 │   ├── trojan/                 # [TROJAN] Cấu hình cho Trojan.
-│   │   ├── ws.json             # Mẫu Trojan + WebSocket.
-│   │   └── tcp.json            # Mẫu Trojan + TCP.
+│   │   └── ws.json             # Mẫu Trojan + WebSocket.   
 │   └── hy2.json                # [HY2] Mẫu cấu hình Hysteria 2.
 │
 └── data/                       # [DATA] Thư mục lưu trữ dữ liệu vận hành thực tế.

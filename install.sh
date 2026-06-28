@@ -155,6 +155,46 @@ else
     log_info "[CẢNH BÁO] Không tìm thấy tệp mẫu xray.service tại đường dẫn templates/. Bỏ qua bước setup SystemD."
 fi
 
+# =================================================================
+# TỰ ĐỘNG TẠO FILE api.conf VÀ SERVICE xray-sync (THÊM MỚI VÀO ĐÂY)
+# =================================================================
+log_info "Đang thiết lập cấu hình API và dịch vụ đồng bộ..."
+
+# 1. Tạo file api.conf mặc định (nếu chưa có)
+mkdir -p "${CURRENT_DIR}/data"
+if [ ! -f "${CURRENT_DIR}/data/api.conf" ]; then
+    cat <<EOF > "${CURRENT_DIR}/data/api.conf"
+API_DOMAIN=""
+API_PORT=""
+API_KEY=""
+EOF
+    chmod 600 "${CURRENT_DIR}/data/api.conf"
+    log_info "Đã tạo file cấu hình API tại: ${CURRENT_DIR}/data/api.conf"
+fi
+
+# 2. Tạo file systemd service xray-sync.service
+cat <<EOF > /etc/systemd/system/xray-sync.service
+[Unit]
+Description=Xray API Sync Service
+After=network.target xray.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash ${CURRENT_DIR}/scripts/api_sync.sh sync
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 3. Kích hoạt dịch vụ chạy ngầm
+systemctl daemon-reload
+systemctl enable xray-sync
+systemctl restart xray-sync
+log_info "Đã thiết lập và khởi chạy xray-sync.service thành công."
+# =================================================================
+
 # Tạo liên kết biểu tượng (Symlink) làm phím tắt mở Menu quản lý
 ln -sf "${CURRENT_DIR}/main.sh" /usr/local/bin/vvc-xr
 chmod +x /usr/local/bin/xray-manager
