@@ -37,10 +37,10 @@ EOF
 
 push_admin_nodes() {
     if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ] && [ -n "$API_PORT" ]; then
-        # Lấy toàn bộ nội dung file nodes.json thay vì lọc
-        local admin_nodes=$(jq -c 'map(select(.email == "admin"))' "$NODE_DB")
+        # Lọc dữ liệu: Đi qua từng inbound, rồi lọc danh sách clients chỉ giữ lại admin
+        local admin_nodes=$(jq 'map(.settings.clients |= map(select(.email == "admin")))' "$NODE_DB")
         
-        # Gói vào payload
+        # Gói payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
 
         # Gửi lên API
