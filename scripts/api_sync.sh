@@ -119,14 +119,25 @@ sync_process() {
     [ -z "$traffic_logs" ] && traffic_logs="[]"
 
     # [ĐOẠN CẦN CHÈN VÀO]
-    # Lọc IP và Email bằng sed (đã xác thực)
-    local ip_data=$(tail -n 1000 "$LOG_FILE" | sed -n 's/.*from \([0-9.]*\):.*email: \([^ ]*\).*/\1 \2/p' | \
-        jq -R 'split(" ") | {ip: .[0], email: .[1]}' | \
-        jq -s 'group_by(.email) | map({username: .[0].email, ips: map(.ip) | unique})' 2>/dev/null || echo "[]")
+    local ip_data="[]"
+    if [ -s "$LOG_FILE" ]; then
+        # 1. Đọc toàn bộ log hiện tại vào biến tạm
+        local log_content=$(cat "$LOG_FILE")
+        # 2. Xóa trắng file log ngay lập tức để Xray ghi tiếp log mới (Giải quyết vụ tắt VPN vẫn gửi IP cũ)
+        > "$LOG_FILE"
 
-    # Merge IP vào mảng traffic_logs hiện có
-    traffic_logs=$(echo "$traffic_logs" | jq -c --argjson ips "$ip_data" \
-        'map(. as $t | $t + {ips: ($ips[] | select(.username == $t.username).ips // [])}) | map(del(.username))')
+        # 3. Lọc IP và Email bằng sed từ biến tạm vừa lưu
+        ip_data=$(echo "$log_content" | sed -n 's/.*from \([0-9.]*\):.*email: \([^ ]*\).*/\1 \2/p' | \
+            jq -R 'split(" ") | {ip: .[0], email: .[1]}' | \
+            jq -s 'group_by(.email) | map({username: .[0].email, ips: map(.ip) | unique})' 2>/dev/null || echo "[]")
+    fi
+
+    # 4. Merge IP vào mảng traffic_logs (Dùng INDEX để sửa lỗi nhân đôi dữ liệu của jq)
+    traffic_logs=$(echo "$traffic_logs" | jq -c --argjson ips "$ip_data" '
+        ($ips | INDEX(.username)) as $ip_map |
+        map(. + {ips: ($ip_map[.username].ips // [])}) | 
+        map(del(.username))
+    ')
 
     # Đóng gói và gửi payload traffic
     local traffic_payload=$(jq -n --arg action "report_traffic" --argjson logs "$traffic_logs" '{action: $action, logs: $logs}')
