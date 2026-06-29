@@ -72,6 +72,7 @@ sync_process() {
 
     # Xray trả dữ liệu traffic theo email/username. API PHP của chúng ta lại yêu cầu uuid (vpn_token).
     # Đoạn jq này tự động map username từ Xray với file USER_DB để lấy ra đúng uuid gửi lên web.
+    # Giữ lại 'username' trong object cho đến khi merge xong
     local traffic_logs=$(echo "$stats" | jq -c --argjson users "$(cat $USER_DB 2>/dev/null || echo '[]')" '
         .stat // [] | 
         reduce .[] as $item ({}; 
@@ -89,7 +90,8 @@ sync_process() {
         map(
             . as $t | 
             ($users | map(select(.email == $t.username)) | .[0].uuid) as $uid |
-            if $uid != null then {uuid: $uid, up: $t.up, down: $t.down} else empty end
+            # --- CHỖ NÀY: Giữ lại username để merge ---
+            if $uid != null then {uuid: $uid, username: $t.username, up: $t.up, down: $t.down} else empty end
         )
     ')
     
