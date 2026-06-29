@@ -37,18 +37,24 @@ EOF
 
 push_admin_nodes() {
     if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ] && [ -n "$API_PORT" ]; then
-        # Lọc dữ liệu: Đi qua từng inbound, rồi lọc danh sách clients chỉ giữ lại admin
+        # 1. Lọc lấy chỉ client "admin" cho tất cả các node
         local admin_nodes=$(jq 'map(.settings.clients |= map(select(.email == "admin")))' "$NODE_DB")
         
-        # Gói payload
+        # 2. Gói payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
 
-        # Gửi lên API
-        curl -s -X POST "${API_DOMAIN}" \
+        # 3. Gửi lên API và hứng phản hồi
+        local response=$(curl -s -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
              -H "X-API-Token: ${API_TOKEN}" \
              -H "Content-Type: application/json" \
-             -d "$payload" > /dev/null
+             -d "$payload")
+
+        # 4. Kiểm tra lỗi từ phía Server Web trả về
+        if echo "$response" | grep -q "error"; then
+            local error_msg=$(echo "$response" | jq -r '.message // "Lỗi không xác định"')
+            echo "Lỗi đồng bộ Node: $error_msg"
+        fi
     fi
 }
 
