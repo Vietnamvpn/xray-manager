@@ -20,7 +20,9 @@ TEST_LOG="${CURRENT_DIR}/data/sync_test.log"
 
 setup_api() {
     clear
-    echo -e "\n--- CẤU HÌNH KẾT NỐI API ---"
+    echo -e "${BLUE}======= CẤU HÌNH KẾT NỐI API ========${NC}"
+    echo -e "Lưu ý: Nếu để trống, sẽ giữ nguyên giá trị cũ."
+    echo -e ""
     
     # 1. Lấy cấu hình hiện tại đang có (nếu chưa có thì bỏ trống hoặc dùng mặc định)
     local current_domain="${API_DOMAIN:-}"
@@ -30,13 +32,18 @@ setup_api() {
     local current_enabled="${API_ENABLED:-true}"
 
     # 2. Hiển thị lựa chọn sửa, nếu nhấn Enter sẽ tự lấy lại giá trị cũ
-    read -p "Nhập URL File PHP [Hiện tại: ${current_domain}]: " input_domain
+
+    echo -e "Hiện tại: ${YELLOW}${current_domain}${NC}"
+    read -p "Nhập URL File PHP: " input_domain
+
     input_domain="${input_domain:-$current_domain}"
 
-    read -p "Nhập API_PORT của VPS này [Hiện tại: ${current_port}]: " input_port
+    echo -e "Hiện tại: ${YELLOW}${current_port}${NC}"
+    read -p "Nhập API_PORT Của VPS Này: " input_port
     input_port="${input_port:-$current_port}"
 
-    read -p "Nhập API_TOKEN của VPS này [Hiện tại: ${current_token}]: " input_token
+    echo -e "Hiện tại: ${YELLOW}${current_token}${NC}"
+    read -p "Nhập API_TOKEN Của VPS Này: " input_token
     input_token="${input_token:-$current_token}"
 
     # 3. Lưu lại vào file api.conf mà không làm mất trạng thái Bật/Tắt
@@ -267,44 +274,46 @@ echo "-----------------------------------" >> "$TEST_LOG"
 
 show_menu() {
     clear
-    # Xác định chuỗi trạng thái hiển thị trên Menu
-    local status_text="Đang Bật"
+
+    # Xác định trạng thái hiển thị kèm màu sắc hệ thống tương ứng
+    local status_text="${GREEN}Đang Bật${NC}"
     if [ "${API_ENABLED:-true}" = "false" ]; then
-        status_text="Đang Tắt"
+        status_text="${RED}Đang Tắt${NC}"
     fi
 
-    echo "======================================="
-    echo "           API SYNC MANAGER            "
-    echo "======================================="
-    echo "1. Cấu hình / Sửa API"
-    echo "2. Đồng bộ dữ liệu thủ công"
-    echo "3. Bật/Tắt kết nối API (Hiện tại: $status_text)"
-    echo "0. Quay lại"
-    echo "======================================="
-    echo -n "Nhập lựa chọn: "
+    echo -e "${BLUE}=======================================${NC}"
+    echo -e "${BLUE}           API SYNC MANAGER            ${NC}"
+    echo -e "${BLUE}=======================================${NC}"
+    echo -e " [${GREEN}1${NC}] Cấu hình / Sửa API"
+    echo -e " [${GREEN}2${NC}] Đồng bộ dữ liệu thủ công"
+    echo -e " [${GREEN}3${NC}] Bật/Tắt kết nối API (Hiện tại: $status_text)"
+    echo -e " [${RED}0${NC}] Quay lại"
+    echo -e "${BLUE}=======================================${NC}"
+    echo -ne "${YELLOW}Nhập lựa chọn: ${NC}"
     read -r choice
     case $choice in
         1) setup_api ;;
         2) 
-           echo "Đang đồng bộ..."
+           echo -e "${BLUE}Đang đồng bộ...${NC}"
            sync_process 
-           echo "Đã chạy xong quy trình đồng bộ."
+           echo -e "${GREEN}Đã chạy xong quy trình đồng bộ.${NC}"
            if [ -s "$NODE_DB" ]; then
-               echo "Trạng thái: Đã gửi dữ liệu từ $NODE_DB lên server."
+               echo -e "${GREEN}Trạng thái: Đã gửi dữ liệu từ $NODE_DB lên server.${NC}"
            else
-               echo "CẢNH BÁO: File $NODE_DB trống hoặc không tồn tại!"
+               echo -e "${RED}CẢNH BÁO: File $NODE_DB trống hoặc không tồn tại!${NC}"
            fi
-           read -p "Nhấn phím bất kỳ để tiếp tục..."
+           echo -ne "${YELLOW}Nhấn phím bất kỳ để tiếp tục...${NC}"
+           read -r
            ;;
         3)
-           # Đảo ngược trạng thái Bật <-> Tắt
+           # Đảo trạng thái liên kết
            if [ "${API_ENABLED:-true}" = "true" ]; then
                API_ENABLED="false"
            else
                API_ENABLED="true"
            fi
            
-           # Ghi đè trạng thái mới lưu lại vào file api.conf mà không mất cấu hình cũ
+           # Ghi đè trạng thái mới vào file cấu hình mà không làm mất thông tin cũ
            mkdir -p "${CURRENT_DIR}/data"
            cat <<EOF > "${CURRENT_DIR}/data/api.conf"
 API_DOMAIN="$API_DOMAIN"
@@ -312,11 +321,11 @@ API_PORT="$API_PORT"
 API_TOKEN="$API_TOKEN"
 API_ENABLED="$API_ENABLED"
 EOF
-           echo -e "Đã chuyển đổi trạng thái kết nối API thành công!"
+           echo -e "${GREEN}Đã cập nhật trạng thái kết nối API thành công!${NC}"
            sleep 1
            ;;
         0) exit 0 ;;
-        *) echo "Sai lựa chọn!"; sleep 1 ;;
+        *) echo -e "${RED}Sai lựa chọn!${NC}"; sleep 1 ;;
     esac
 }
 
