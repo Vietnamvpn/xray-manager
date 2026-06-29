@@ -315,16 +315,16 @@ show_menu() {
     fi
 
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "${BLUE}           API SYNC MANAGER            ${NC}"
+    echo -e "${BLUE}||           API SYNC MANAGER            ||${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -e "Hiện tại: ${CYAN}$status_text${NC}"
     echo -e ""
-    echo -e " [${GREEN}1${NC}] Cấu hình / Sửa API"
-    echo -e " [${GREEN}2${NC}] Đồng bộ dữ liệu thủ công"
-    echo -e " [${GREEN}3${NC}] Bật/Tắt kết nối API"
-    echo -e " [${GREEN}4${NC}] Kiểm tra & Cài đặt Netcat"
-    echo -e " [0] ${RED}Quay lại${NC}"
-    echo -e "${BLUE}----------------------------------------${NC}"
+    echo -e " ${GREEN}1.${NC} Cấu hình / Sửa API"
+    echo -e " ${GREEN}2.${NC} Đồng bộ dữ liệu thủ công"
+    echo -e " ${GREEN}3.${NC} Bật/Tắt kết nối API"
+    echo -e " ${GREEN}4.${NC} Kiểm tra & Cài đặt Netcat"
+    echo -e " 0. ${RED}Quay lại${NC}"
+    echo -e "${BLUE}-----------------------------------------${NC}"
     echo -ne "${YELLOW}Nhập lựa chọn: ${NC}"
     read -r choice
     case $choice in
