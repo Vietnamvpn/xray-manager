@@ -67,20 +67,29 @@ push_admin_nodes() {
         # 1. Lấy IP Public của VPS (Để kiểm tra kết nối từ ngoài vào)
         local pub_ip=$(curl -s https://ifconfig.me)
 
-        # 2. Lấy danh sách các port cần kiểm tra
-        local ports=$(jq -r '.[].port' "$NODE_DB" | sort -u)
+        # 2. Khởi tạo cấu trúc dữ liệu trạng thái trống
         local status_json="{}"
 
-        # 3. Kiểm tra từng port bằng Netcat (nc)
-        for p in $ports; do
-            # Dùng nc để thử kết nối tới IP Public của chính nó
-            # -z: scan mode, -w 1: timeout 1 giây
-            if timeout 1 nc -z -w 1 "$pub_ip" "$p" >/dev/null 2>&1; then
+        # 3. Quét từng port dựa theo giao thức tương ứng (Phân tách TCP và UDP)
+        while read -r p proto; do
+            [ -z "$p" ] && continue
+            
+            # Mặc định sử dụng cờ quét cổng chế độ TCP (-z)
+            local nc_flags="-z"
+            
+            # Nếu là nhóm giao thức chạy trên nền UDP (Hysteria 1/2) thì chuyển sang cờ -zu
+            if [[ "$proto" == "hysteria" || "$proto" == "hy2" || "$proto" == "hysteria2" ]]; then
+                nc_flags="-zu"
+            fi
+
+            # Thực hiện kiểm tra cổng với timeout 1 giây
+            if timeout 1 nc $nc_flags -w 1 "$pub_ip" "$p" >/dev/null 2>&1; then
                 status_json=$(echo "$status_json" | jq --arg p "$p" '. + {($p): "online"}')
             else
-                status_json=$(echo "$status_json" | jq --arg p "$p" '. + {($p): "offline"}')
+                # Tránh ghi đè trạng thái offline nếu port đó đã được xác nhận online trước đó
+                status_json=$(echo "$status_json" | jq --arg p "$p" 'if .[$p] == "online" then . else . + {($p): "offline"} end')
             fi
-        done
+        done < <(jq -r '.[] | select(.port != null) | "\(.port) \(.protocol)"' "$NODE_DB" | sort -u)
 
         # 4. Gắn status vào JSON và lọc client "admin"
         local admin_nodes=$(jq -c --argjson statuses "$status_json" '
