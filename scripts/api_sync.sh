@@ -42,7 +42,7 @@ push_admin_nodes() {
         
         # 2. Gói payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
-
+        echo "$payload" > "$TEST_LOG"
         # 3. Gửi lên API và hứng phản hồi
         local response=$(curl -s -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
@@ -108,7 +108,7 @@ sync_process() {
 
     # Đóng gói và gửi payload traffic
     local traffic_payload=$(jq -n --arg action "report_traffic" --argjson logs "$traffic_logs" '{action: $action, logs: $logs}')
-    
+    echo "$traffic_payload" > "$TEST_LOG"
     curl -s -X POST "${API_DOMAIN}" \
          -H "X-API-Port: ${API_PORT}" \
          -H "X-API-Token: ${API_TOKEN}" \
