@@ -37,20 +37,29 @@ EOF
 
 push_admin_nodes() {
     if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ] && [ -n "$API_PORT" ]; then
-        # 1. Lọc lấy chỉ client "admin" cho tất cả các node
-        local admin_nodes=$(jq 'map(.settings.clients |= map(select(.email == "admin")))' "$NODE_DB")
+        # 1. Lọc lấy chỉ client "admin" và thêm trạng thái cho từng inbound
+        # Dùng jq để duyệt qua từng inbound, lấy port, kiểm tra bằng bash, rồi gắn status vào JSON
+        local admin_nodes=$(jq -c 'map(.settings.clients |= map(select(.email == "admin"))) | 
+            map(. as $inb | 
+                .port as $p | 
+                # Chạy lệnh kiểm tra port (đang lắng nghe hay không)
+                (if (systemctl is-active xray >/dev/null 2>&1) then 
+                    (if (ss -tuln | grep -q ":$p ") then "online" else "offline" end) 
+                 else "offline" end) as $status | 
+                $inb + {inbound_status: $status}
+            )' "$NODE_DB")
         
-        # 2. Gói payload
+        # 2. Gói payload (lúc này admin_nodes đã chứa thông tin status của từng inbound)
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
         
-        # 3. Gửi lên API và hứng phản hồi
+        # 3. Gửi lên API
         local response=$(curl -s -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
              -H "X-API-Token: ${API_TOKEN}" \
              -H "Content-Type: application/json" \
              -d "$payload")
 
-        # 4. Kiểm tra lỗi từ phía Server Web trả về
+        # 4. Kiểm tra lỗi
         if echo "$response" | grep -q "error"; then
             local error_msg=$(echo "$response" | jq -r '.message // "Lỗi không xác định"')
             echo "Lỗi đồng bộ Node: $error_msg"
