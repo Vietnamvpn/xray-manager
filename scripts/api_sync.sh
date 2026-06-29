@@ -21,17 +21,37 @@ TEST_LOG="${CURRENT_DIR}/data/sync_test.log"
 setup_api() {
     clear
     echo -e "\n--- CẤU HÌNH KẾT NỐI API ---"
-    read -p "Nhập URL File PHP (vd: https://panel.com/api/node_sync.php): " input_domain
-    read -p "Nhập API_PORT của VPS này (vd: 10085): " input_port
-    read -p "Nhập API_TOKEN của VPS này: " input_token
+    
+    # 1. Lấy cấu hình hiện tại đang có (nếu chưa có thì bỏ trống hoặc dùng mặc định)
+    local current_domain="${API_DOMAIN:-}"
+    local current_port="${API_PORT:-10085}"
+    local current_token="${API_TOKEN:-}"
+    # Giữ nguyên trạng thái Bật/Tắt hiện tại, nếu file mới tinh thì mặc định là true (Bật)
+    local current_enabled="${API_ENABLED:-true}"
 
+    # 2. Hiển thị lựa chọn sửa, nếu nhấn Enter sẽ tự lấy lại giá trị cũ
+    read -p "Nhập URL File PHP [Hiện tại: ${current_domain}]: " input_domain
+    input_domain="${input_domain:-$current_domain}"
+
+    read -p "Nhập API_PORT của VPS này [Hiện tại: ${current_port}]: " input_port
+    input_port="${input_port:-$current_port}"
+
+    read -p "Nhập API_TOKEN của VPS này [Hiện tại: ${current_token}]: " input_token
+    input_token="${input_token:-$current_token}"
+
+    # 3. Lưu lại vào file api.conf mà không làm mất trạng thái Bật/Tắt
     mkdir -p "${CURRENT_DIR}/data"
     cat <<EOF > "${CURRENT_DIR}/data/api.conf"
 API_DOMAIN="$input_domain"
 API_PORT="$input_port"
 API_TOKEN="$input_token"
+API_ENABLED="$current_enabled"
 EOF
-    echo -e "Đã lưu cấu hình vào data/api.conf thành công!"
+
+    # 4. Load lại cấu hình mới vào script ngay lập tức
+    source "${CURRENT_DIR}/data/api.conf"
+
+    echo -e "Đã cập nhật cấu hình API thành công!"
     sleep 2
 }
 
@@ -80,6 +100,12 @@ push_admin_nodes() {
 }
 
 sync_process() {
+    # [BỔ SUNG: Kiểm tra nếu API đang tắt thì dừng luôn]
+    if [ "${API_ENABLED:-true}" = "false" ]; then
+        echo "Thông báo: Liên kết API hiện đang TẮT. Không thể đồng bộ dữ liệu!"
+        return
+    fi
+
     if [ -z "$API_DOMAIN" ] || [ -z "$API_TOKEN" ] || [ -z "$API_PORT" ]; then
         echo "Chưa cấu hình API. Vui lòng chạy setup trước!"
         return
@@ -241,11 +267,18 @@ echo "-----------------------------------" >> "$TEST_LOG"
 
 show_menu() {
     clear
+    # Xác định chuỗi trạng thái hiển thị trên Menu
+    local status_text="Đang Bật"
+    if [ "${API_ENABLED:-true}" = "false" ]; then
+        status_text="Đang Tắt"
+    fi
+
     echo "======================================="
     echo "           API SYNC MANAGER            "
     echo "======================================="
-    echo "1. Cấu hình API"
+    echo "1. Cấu hình / Sửa API"
     echo "2. Đồng bộ dữ liệu thủ công"
+    echo "3. Bật/Tắt kết nối API (Hiện tại: $status_text)"
     echo "0. Quay lại"
     echo "======================================="
     echo -n "Nhập lựa chọn: "
@@ -256,13 +289,31 @@ show_menu() {
            echo "Đang đồng bộ..."
            sync_process 
            echo "Đã chạy xong quy trình đồng bộ."
-           # Kiểm tra xem file node có dữ liệu không trước khi báo thành công
            if [ -s "$NODE_DB" ]; then
                echo "Trạng thái: Đã gửi dữ liệu từ $NODE_DB lên server."
            else
                echo "CẢNH BÁO: File $NODE_DB trống hoặc không tồn tại!"
            fi
            read -p "Nhấn phím bất kỳ để tiếp tục..."
+           ;;
+        3)
+           # Đảo ngược trạng thái Bật <-> Tắt
+           if [ "${API_ENABLED:-true}" = "true" ]; then
+               API_ENABLED="false"
+           else
+               API_ENABLED="true"
+           fi
+           
+           # Ghi đè trạng thái mới lưu lại vào file api.conf mà không mất cấu hình cũ
+           mkdir -p "${CURRENT_DIR}/data"
+           cat <<EOF > "${CURRENT_DIR}/data/api.conf"
+API_DOMAIN="$API_DOMAIN"
+API_PORT="$API_PORT"
+API_TOKEN="$API_TOKEN"
+API_ENABLED="$API_ENABLED"
+EOF
+           echo -e "Đã chuyển đổi trạng thái kết nối API thành công!"
+           sleep 1
            ;;
         0) exit 0 ;;
         *) echo "Sai lựa chọn!"; sleep 1 ;;
