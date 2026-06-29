@@ -104,11 +104,16 @@ sync_process() {
 
     # Merge IP vào mảng traffic_logs hiện có
     traffic_logs=$(echo "$traffic_logs" | jq -c --argjson ips "$ip_data" \
-        'map(. as $t | $t + {ips: ($ips[] | select(.username == $t.username).ips // [])})')
+        'map(. as $t | $t + {ips: ($ips[] | select(.username == $t.username).ips // [])}) | map(del(.username))')
 
     # Đóng gói và gửi payload traffic
     local traffic_payload=$(jq -n --arg action "report_traffic" --argjson logs "$traffic_logs" '{action: $action, logs: $logs}')
-    echo "$traffic_payload" > "$TEST_LOG"
+    
+    # Thay đoạn ghi log cũ bằng đoạn này
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] --- REPORT TRAFFIC ---" >> "$TEST_LOG"
+echo "$traffic_payload" >> "$TEST_LOG"
+echo "-----------------------------------" >> "$TEST_LOG"
+
     curl -s -X POST "${API_DOMAIN}" \
          -H "X-API-Port: ${API_PORT}" \
          -H "X-API-Token: ${API_TOKEN}" \
