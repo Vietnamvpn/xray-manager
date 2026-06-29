@@ -196,7 +196,7 @@ show_menu() {
            echo "Đang lấy dữ liệu..."
            sync_process 
            echo "Đã ghi dữ liệu test vào: $TEST_LOG"
-           if [ -n "$API_DOMAIN" ] && [ -n "$API_KEY" ]; then
+           if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ]; then
                echo "Đã đồng bộ admin nodes và kiểm tra lệnh từ Web thành công!"
            else
                echo "(Chưa cấu hình API, chỉ ghi file log test)"
