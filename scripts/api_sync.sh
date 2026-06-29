@@ -21,7 +21,7 @@ TEST_LOG="${CURRENT_DIR}/data/sync_test.log"
 setup_api() {
     clear
     echo -e "${BLUE}======= CẤU HÌNH KẾT NỐI API ========${NC}"
-    echo -e "Lưu ý: Nếu để trống, sẽ giữ nguyên giá trị cũ."
+    echo -e "${RED}Lưu ý:${NC} Nếu để trống, sẽ giữ nguyên giá trị cũ."
     echo -e ""
     
     # 1. Lấy cấu hình hiện tại đang có (nếu chưa có thì bỏ trống hoặc dùng mặc định)
@@ -283,10 +283,11 @@ show_menu() {
 
     echo -e "${BLUE}=======================================${NC}"
     echo -e "${BLUE}           API SYNC MANAGER            ${NC}"
+    echo -e "Hiện tại: ${CYAN}$status_text${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -e " [${GREEN}1${NC}] Cấu hình / Sửa API"
     echo -e " [${GREEN}2${NC}] Đồng bộ dữ liệu thủ công"
-    echo -e " [${GREEN}3${NC}] Bật/Tắt kết nối API (Hiện tại: $status_text)"
+    echo -e " [${GREEN}3${NC}] Bật/Tắt kết nối API"
     echo -e " [${RED}0${NC}] Quay lại"
     echo -e "${BLUE}=======================================${NC}"
     echo -ne "${YELLOW}Nhập lựa chọn: ${NC}"
