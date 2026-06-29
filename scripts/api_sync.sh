@@ -42,7 +42,7 @@ push_admin_nodes() {
         
         # 2. Gói payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
-        echo "$payload" > "$TEST_LOG"
+        
         # 3. Gửi lên API và hứng phản hồi
         local response=$(curl -s -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
