@@ -185,11 +185,11 @@ sync_process() {
     local traffic_payload=$(jq -n --arg action "report_traffic" --argjson logs "$traffic_logs" '{action: $action, logs: $logs}')
     
     # Dùng > ở dòng đầu tiên để xóa file cũ và ghi tiêu đề vào
-echo "========== REPORT TRAFFIC ==========" > "$TEST_LOG"
+echo "========================= REPORT TRAFFIC ========================" > "$TEST_LOG"
 # Dùng >> ở các dòng sau để ghi tiếp ngày giờ và nội dung dữ liệu
 echo "[$(date '+%Y-%m-%d %H:%M:%S')]" >> "$TEST_LOG"
 echo "$traffic_payload" >> "$TEST_LOG"
-echo "-----------------------------------" >> "$TEST_LOG"
+echo "-----------------------------------------------------------------" >> "$TEST_LOG"
 
     curl -s -X POST "${API_DOMAIN}" \
          -H "X-API-Port: ${API_PORT}" \
