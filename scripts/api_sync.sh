@@ -95,6 +95,17 @@ sync_process() {
     
     [ -z "$traffic_logs" ] && traffic_logs="[]"
 
+    # [ĐOẠN CẦN CHÈN VÀO]
+    # Lọc IP từ log và gộp vào traffic_logs
+    local ip_data=$(tail -n 1000 "$LOG_FILE" | grep "accepted" | grep "email:" | \
+        awk '{print $3, $NF}' | sed 's/:.*//' | \
+        jq -R 'split(" ") | {ip: .[0], email: .[1]}' | \
+        jq -s 'group_by(.email) | map({username: .[0].email, ips: map(.ip) | unique})' 2>/dev/null || echo "[]")
+
+    # Merge IP vào mảng traffic_logs hiện có
+    traffic_logs=$(echo "$traffic_logs" | jq -c --argjson ips "$ip_data" \
+        'map(. as $t | $t + {ips: ($ips[] | select(.username == $t.username).ips // [])})')
+
     # Đóng gói và gửi payload traffic
     local traffic_payload=$(jq -n --arg action "report_traffic" --argjson logs "$traffic_logs" '{action: $action, logs: $logs}')
     
