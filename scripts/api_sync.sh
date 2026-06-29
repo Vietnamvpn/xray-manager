@@ -351,11 +351,11 @@ show_menu() {
            # Ghi đè trạng thái mới vào file cấu hình mà không làm mất thông tin cũ
            mkdir -p "${CURRENT_DIR}/data"
            cat <<EOF > "${CURRENT_DIR}/data/api.conf"
-          API_DOMAIN="$API_DOMAIN"
-          API_PORT="$API_PORT"
-          API_TOKEN="$API_TOKEN"
-          API_ENABLED="$API_ENABLED"
-         EOF
+API_DOMAIN="$API_DOMAIN"
+API_PORT="$API_PORT"
+API_TOKEN="$API_TOKEN"
+API_ENABLED="$API_ENABLED"
+EOF
            echo -e "${GREEN}Đã cập nhật trạng thái kết nối API thành công!${NC}"
            sleep 1
            ;;
