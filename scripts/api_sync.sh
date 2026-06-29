@@ -96,9 +96,9 @@ sync_process() {
     [ -z "$traffic_logs" ] && traffic_logs="[]"
 
     # [ĐOẠN CẦN CHÈN VÀO]
-    # Lọc IP từ log và gộp vào traffic_logs
+    # Lọc IP và Email bằng Regex thay vì awk
     local ip_data=$(tail -n 1000 "$LOG_FILE" | grep "accepted" | grep "email:" | \
-        awk '{print $3, $NF}' | sed 's/:.*//' | \
+        sed -E 's/.*from ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):.*email: ([^ ]+).*/\1 \2/' | \
         jq -R 'split(" ") | {ip: .[0], email: .[1]}' | \
         jq -s 'group_by(.email) | map({username: .[0].email, ips: map(.ip) | unique})' 2>/dev/null || echo "[]")
 
