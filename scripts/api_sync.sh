@@ -37,29 +37,41 @@ EOF
 
 push_admin_nodes() {
     if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ] && [ -n "$API_PORT" ]; then
-        # 1. Lọc lấy chỉ client "admin" và thêm trạng thái cho từng inbound
-        # Dùng jq để duyệt qua từng inbound, lấy port, kiểm tra bằng bash, rồi gắn status vào JSON
-        local admin_nodes=$(jq -c 'map(.settings.clients |= map(select(.email == "admin"))) | 
-            map(. as $inb | 
-                .port as $p | 
-                # Chạy lệnh kiểm tra port (đang lắng nghe hay không)
-                (if (systemctl is-active xray >/dev/null 2>&1) then 
-                    (if (ss -tuln | grep -q ":$p ") then "online" else "offline" end) 
-                 else "offline" end) as $status | 
-                $inb + {inbound_status: $status}
-            )' "$NODE_DB")
+        # 1. Lấy IP Public của VPS (Để kiểm tra kết nối từ ngoài vào)
+        local pub_ip=$(curl -s https://ifconfig.me)
+
+        # 2. Lấy danh sách các port cần kiểm tra
+        local ports=$(jq -r '.[].port' "$NODE_DB" | sort -u)
+        local status_json="{}"
+
+        # 3. Kiểm tra từng port bằng Netcat (nc)
+        for p in $ports; do
+            # Dùng nc để thử kết nối tới IP Public của chính nó
+            # -z: scan mode, -w 1: timeout 1 giây
+            if timeout 1 nc -z -w 1 "$pub_ip" "$p" >/dev/null 2>&1; then
+                status_json=$(echo "$status_json" | jq --arg p "$p" '. + {($p): "online"}')
+            else
+                status_json=$(echo "$status_json" | jq --arg p "$p" '. + {($p): "offline"}')
+            fi
+        done
+
+        # 4. Gắn status vào JSON và lọc client "admin"
+        local admin_nodes=$(jq -c --argjson statuses "$status_json" '
+            map(.settings.clients |= map(select(.email == "admin"))) | 
+            map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")})
+        ' "$NODE_DB")
         
-        # 2. Gói payload (lúc này admin_nodes đã chứa thông tin status của từng inbound)
+        # 5. Gói payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
         
-        # 3. Gửi lên API
+        # 6. Gửi lên API
         local response=$(curl -s -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
              -H "X-API-Token: ${API_TOKEN}" \
              -H "Content-Type: application/json" \
              -d "$payload")
 
-        # 4. Kiểm tra lỗi
+        # 7. Kiểm tra lỗi
         if echo "$response" | grep -q "error"; then
             local error_msg=$(echo "$response" | jq -r '.message // "Lỗi không xác định"')
             echo "Lỗi đồng bộ Node: $error_msg"
