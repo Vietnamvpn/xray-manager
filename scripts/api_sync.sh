@@ -184,9 +184,10 @@ sync_process() {
     # Đóng gói và gửi payload traffic
     local traffic_payload=$(jq -n --arg action "report_traffic" --argjson logs "$traffic_logs" '{action: $action, logs: $logs}')
     
-    # Dùng > ở dòng đầu tiên để xóa file cũ và ghi nội dung mới vào
-echo "[$(date '+%Y-%m-%d %H:%M:%S')]====== REPORT TRAFFIC ======" > "$TEST_LOG"
-# Các dòng sau dùng >> để ghi nối tiếp vào file đã được làm sạch
+    # Dùng > ở dòng đầu tiên để xóa file cũ và ghi tiêu đề vào
+echo "========== REPORT TRAFFIC ==========" > "$TEST_LOG"
+# Dùng >> ở các dòng sau để ghi tiếp ngày giờ và nội dung dữ liệu
+echo "[$(date '+%Y-%m-%d %H:%M:%S')]" >> "$TEST_LOG"
 echo "$traffic_payload" >> "$TEST_LOG"
 echo "-----------------------------------" >> "$TEST_LOG"
 
