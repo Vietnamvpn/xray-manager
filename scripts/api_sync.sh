@@ -186,8 +186,7 @@ sync_process() {
     
     # Dùng > ở dòng đầu tiên để xóa file cũ và ghi nội dung mới vào
 echo -e "${BLUE}====== REPORT TRAFFIC ======${NC}"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')]" >> "$TEST_LOG"
-
+echo "[$(date '+%Y-%m-%d %H:%M:%S')]" > "$TEST_LOG"
 # Các dòng sau dùng >> để ghi nối tiếp vào file đã được làm sạch
 echo "$traffic_payload" >> "$TEST_LOG"
 echo "-----------------------------------" >> "$TEST_LOG"
