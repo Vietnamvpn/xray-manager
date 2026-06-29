@@ -315,7 +315,7 @@ show_menu() {
     fi
 
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "${BLUE}||         API SYNC MANAGER          ||${NC}"
+    echo -e "${BLUE}||${NC}         ${YELLOW}API SYNC MANAGER${NC}          ${BLUE}||${NC}"
     echo -e "${BLUE}=======================================${NC}"
     echo -e "Hiện tại: ${CYAN}$status_text${NC}"
     echo -e ""
