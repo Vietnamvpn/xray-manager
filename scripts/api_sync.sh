@@ -187,27 +187,28 @@ show_menu() {
     echo "======================================="
     echo "           API SYNC MANAGER            "
     echo "======================================="
-    echo "1. Cấu hình API (Domain, Port, Key)"
-    echo "2. Đồng bộ dữ liệu thủ công ngay lập tức"
-    echo "0. Quay lại Menu chính"
+    echo "1. Cấu hình API"
+    echo "2. Đồng bộ dữ liệu thủ công"
+    echo "0. Quay lại"
     echo "======================================="
     echo -n "Nhập lựa chọn: "
     read -r choice
     case $choice in
         1) setup_api ;;
         2) 
-           echo "Đang lấy dữ liệu..."
+           echo "Đang đồng bộ..."
            sync_process 
-           echo "Đã ghi dữ liệu test vào: $TEST_LOG"
-           if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ]; then
-               echo "Đã đồng bộ admin nodes và kiểm tra lệnh từ Web thành công!"
+           echo "Đã chạy xong quy trình đồng bộ."
+           # Kiểm tra xem file node có dữ liệu không trước khi báo thành công
+           if [ -s "$NODE_DB" ]; then
+               echo "Trạng thái: Đã gửi dữ liệu từ $NODE_DB lên server."
            else
-               echo "(Chưa cấu hình API, chỉ ghi file log test)"
+               echo "CẢNH BÁO: File $NODE_DB trống hoặc không tồn tại!"
            fi
-           sleep 2
+           read -p "Nhấn phím bất kỳ để tiếp tục..."
            ;;
         0) exit 0 ;;
-        *) echo "Lựa chọn không hợp lệ!" ; sleep 1 ;;
+        *) echo "Sai lựa chọn!"; sleep 1 ;;
     esac
 }
 
