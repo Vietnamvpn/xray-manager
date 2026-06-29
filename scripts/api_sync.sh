@@ -272,6 +272,38 @@ echo "-----------------------------------" >> "$TEST_LOG"
     fi
 }
 
+check_install_netcat() {
+    clear
+    echo -e "\n--- KIỂM TRA & CÀI ĐẶT NETCAT (NC) ---"
+    
+    # Kiểm tra xem lệnh nc đã tồn tại chưa
+    if command -v nc >/dev/null 2>&1; then
+        echo -e "${GREEN}Netcat (nc) đã được cài đặt sẵn trên hệ thống!${NC}"
+    else
+        echo -e "${YELLOW}Netcat (nc) chưa được cài đặt. Tiến hành tự động cài đặt...${NC}"
+        
+        # Tự động nhận diện trình quản lý gói của hệ điều hành để cài đặt
+        if command -v apt >/dev/null 2>&1; then
+            apt-get update -y && apt-get install netcat-openbsd -y
+        elif command -v yum >/dev/null 2>&1; then
+            yum install nc -y
+        else
+            echo -e "${RED}Không tìm thấy trình quản lý gói phù hợp (apt/yum). Vui lòng cài đặt gói 'nc' thủ công!${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+            return
+        fi
+
+        # Kiểm tra lại một lần nữa sau khi cài đặt
+        if command -v nc >/dev/null 2>&1; then
+            echo -e "${GREEN}Cài đặt Netcat (nc) thành công! Chức năng quét port inbound đã sẵn sàng.${NC}"
+        else
+            echo -e "${RED}Cài đặt Netcat (nc) thất bại! Vui lòng kiểm tra lại kết nối mạng hoặc kho phần mềm.${NC}"
+        fi
+    fi
+    
+    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+}
+
 show_menu() {
     clear
 
@@ -288,6 +320,7 @@ show_menu() {
     echo -e " [${GREEN}1${NC}] Cấu hình / Sửa API"
     echo -e " [${GREEN}2${NC}] Đồng bộ dữ liệu thủ công"
     echo -e " [${GREEN}3${NC}] Bật/Tắt kết nối API"
+    echo -e " [${GREEN}4${NC}] Kiểm tra & Cài đặt Netcat"
     echo -e " [${RED}0${NC}] Quay lại"
     echo -e "${BLUE}=======================================${NC}"
     echo -ne "${YELLOW}Nhập lựa chọn: ${NC}"
@@ -317,13 +350,16 @@ show_menu() {
            # Ghi đè trạng thái mới vào file cấu hình mà không làm mất thông tin cũ
            mkdir -p "${CURRENT_DIR}/data"
            cat <<EOF > "${CURRENT_DIR}/data/api.conf"
-API_DOMAIN="$API_DOMAIN"
-API_PORT="$API_PORT"
-API_TOKEN="$API_TOKEN"
-API_ENABLED="$API_ENABLED"
-EOF
+          API_DOMAIN="$API_DOMAIN"
+          API_PORT="$API_PORT"
+          API_TOKEN="$API_TOKEN"
+          API_ENABLED="$API_ENABLED"
+         EOF
            echo -e "${GREEN}Đã cập nhật trạng thái kết nối API thành công!${NC}"
            sleep 1
+           ;;
+        4)
+           check_install_netcat
            ;;
         0) exit 0 ;;
         *) echo -e "${RED}Sai lựa chọn!${NC}"; sleep 1 ;;
