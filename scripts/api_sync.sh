@@ -37,10 +37,13 @@ EOF
 
 push_admin_nodes() {
     if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ] && [ -n "$API_PORT" ]; then
-        # Lấy nodes và gói vào JSON chuẩn theo PHP API
-        local admin_nodes=$(jq -c 'map(select(.name == "admin"))' "$NODE_DB")
+        # Lấy toàn bộ nội dung file nodes.json thay vì lọc
+        local admin_nodes=$(cat "$NODE_DB")
+        
+        # Gói vào payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
 
+        # Gửi lên API
         curl -s -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
              -H "X-API-Token: ${API_TOKEN}" \
