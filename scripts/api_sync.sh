@@ -256,6 +256,34 @@ echo "-----------------------------------------------------------------" >> "$TE
                     fi
                     apply_config
                     ;;
+                "reset_token")
+                    # Cập nhật UUID mới trong users.json
+                    jq --arg e "$username" --arg u "$uuid" 'map(if .email == $e then .uuid = $u else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+                    
+                    # Cập nhật ID/Password/Auth mới trong nodes.json theo chuẩn Protocol (logic lấy từ user_manager.sh)
+                    jq --arg e "$username" --arg u "$uuid" '
+                        map(
+                            . as $node |
+                            if .settings.clients != null then 
+                                .settings.clients |= map(
+                                    if .email == $e then 
+                                        if $node.protocol == "vless" or $node.protocol == "vmess" then
+                                            {"id": $u, "email": $e}
+                                        elif $node.protocol == "hysteria" or $node.protocol == "hy2" or $node.protocol == "hysteria2" then
+                                            {"auth": $u, "email": $e}
+                                        else
+                                            {"password": $u, "email": $e}
+                                        end
+                                    else . end
+                                )
+                            elif .settings.users != null then 
+                                .settings.users |= map(if .email == $e then {"password": $u, "email": $e} else . end)
+                            elif .users != null then
+                                .users |= map(if .email == $e then {"password": $u, "email": $e} else . end)
+                            else . end
+                        )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    apply_config
+                    ;;
                 *)
                     task_status="failed"
                     error_msg="Hành động $action không được hỗ trợ"
