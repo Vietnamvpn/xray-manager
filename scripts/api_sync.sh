@@ -233,7 +233,7 @@ echo "-----------------------------------------------------------------" >> "$TE
             # ==========================================
             case "$action" in
                 "add_user")
-                    # 1. Cập nhật USER_DB: Lọc bỏ record cũ (nếu có) bằng map(select...), sau đó mới cộng (+) thêm record mới
+                    # 1. Cập nhật USER_DB: Lọc bỏ record cũ (nếu có), sau đó mới cộng (+) thêm record mới
                     jq --arg e "$username" --arg u "$uuid" 'map(select(.email != $e)) + [{"email": $e, "uuid": $u, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
                     
                     # 2. Cập nhật NODE_DB: Xóa user cũ khỏi mảng (clients/users) trước khi thêm mới
@@ -263,7 +263,7 @@ echo "-----------------------------------------------------------------" >> "$TE
                     apply_config
                     ;;
                 "toggle_user")
-                    # 1. Cập nhật trạng thái trong USER_DB (Giữ nguyên vì chỉ là thay đổi thuộc tính)
+                    # 1. Cập nhật trạng thái trong USER_DB
                     local status=$(echo "$payload_str" | jq -r '.status // "active"')
                     jq --arg e "$username" --arg s "$status" 'map(if .email == $e then .status = $s else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
                     
