@@ -233,9 +233,27 @@ echo "-----------------------------------------------------------------" >> "$TE
             # ==========================================
             case "$action" in
                 "add_user")
-                    # Lệnh jq gốc từ file cũ của ông, thay email bằng username để khớp payload
-                    jq --arg e "$username" --arg u "$uuid" '. += [{"email": $e, "uuid": $u, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
-                    jq --arg e "$username" --arg u "$uuid" 'map(if .settings.clients != null then if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}] elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then .settings.clients += [{"auth": $u, "email": $e}] else .settings.clients += [{"password": $u, "email": $e}] end elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}] elif .users != null then .users += [{"password": $u, "email": $e}] else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    # 1. Cập nhật USER_DB: Lọc bỏ record cũ (nếu có) bằng map(select...), sau đó mới cộng (+) thêm record mới
+                    jq --arg e "$username" --arg u "$uuid" 'map(select(.email != $e)) + [{"email": $e, "uuid": $u, "quota_gb": "0", "status": "active"}]' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+                    
+                    # 2. Cập nhật NODE_DB: Xóa user cũ khỏi mảng (clients/users) trước khi thêm mới
+                    jq --arg e "$username" --arg u "$uuid" '
+                        map(
+                            if .settings.clients != null then
+                                # Xóa user cũ trong mảng clients, sau đó thêm mới
+                                .settings.clients |= (map(select(.email != $e)) + 
+                                    (if .protocol == "vless" or .protocol == "vmess" then [{"id": $u, "email": $e}]
+                                     elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then [{"auth": $u, "email": $e}]
+                                     else [{"password": $u, "email": $e}] end))
+                            elif .settings.users != null then
+                                # Xóa user cũ trong mảng settings.users, sau đó thêm mới
+                                .settings.users |= (map(select(.email != $e)) + [{"password": $u, "email": $e}])
+                            elif .users != null then
+                                # Xóa user cũ trong mảng users, sau đó thêm mới
+                                .users |= (map(select(.email != $e)) + [{"password": $u, "email": $e}])
+                            else . end
+                        )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                    
                     apply_config
                     ;;
                 "delete_user")
@@ -245,13 +263,28 @@ echo "-----------------------------------------------------------------" >> "$TE
                     apply_config
                     ;;
                 "toggle_user")
-                    # Lệnh jq gốc từ file cũ của ông
+                    # 1. Cập nhật trạng thái trong USER_DB (Giữ nguyên vì chỉ là thay đổi thuộc tính)
                     local status=$(echo "$payload_str" | jq -r '.status // "active"')
                     jq --arg e "$username" --arg s "$status" 'map(if .email == $e then .status = $s else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
                     
+                    # 2. Cập nhật NODE_DB với logic Upsert (nếu active thì xóa cũ thêm mới, nếu disabled thì chỉ xóa)
                     if [ "$status" == "active" ]; then
-                        jq --arg e "$username" --arg u "$uuid" 'map(if .settings.clients != null then if .protocol == "vless" or .protocol == "vmess" then .settings.clients += [{"id": $u, "email": $e}] elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then .settings.clients += [{"auth": $u, "email": $e}] else .settings.clients += [{"password": $u, "email": $e}] end elif .settings.users != null then .settings.users += [{"password": $u, "email": $e}] elif .users != null then .users += [{"password": $u, "email": $e}] else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
+                        # Dùng logic Xóa trước - Thêm sau để tránh trùng lặp khi kích hoạt lại
+                        jq --arg e "$username" --arg u "$uuid" '
+                            map(
+                                if .settings.clients != null then
+                                    .settings.clients |= (map(select(.email != $e)) + 
+                                        (if .protocol == "vless" or .protocol == "vmess" then [{"id": $u, "email": $e}]
+                                         elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then [{"auth": $u, "email": $e}]
+                                         else [{"password": $u, "email": $e}] end))
+                                elif .settings.users != null then
+                                    .settings.users |= (map(select(.email != $e)) + [{"password": $u, "email": $e}])
+                                elif .users != null then
+                                    .users |= (map(select(.email != $e)) + [{"password": $u, "email": $e}])
+                                else . end
+                            )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
                     else
+                        # Chỉ xóa user (đúng cho trạng thái disabled)
                         jq --arg e "$username" 'map(if .settings.clients != null then .settings.clients |= map(select(.email != $e)) elif .settings.users != null then .settings.users |= map(select(.email != $e)) else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
                     fi
                     apply_config
