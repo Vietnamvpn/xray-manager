@@ -267,16 +267,18 @@ echo "-----------------------------------------------------------------" >> "$TE
                     local status=$(echo "$payload_str" | jq -r '.status // "active"')
                     jq --arg e "$username" --arg s "$status" 'map(if .email == $e then .status = $s else . end)' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
                     
-                    # 2. Cập nhật NODE_DB với logic Upsert (nếu active thì xóa cũ thêm mới, nếu disabled thì chỉ xóa)
+                    # 2. Cập nhật NODE_DB với logic Xóa cũ - Thêm mới (cho active)
                     if [ "$status" == "active" ]; then
-                        # Dùng logic Xóa trước - Thêm sau để tránh trùng lặp khi kích hoạt lại
                         jq --arg e "$username" --arg u "$uuid" '
                             map(
                                 if .settings.clients != null then
-                                    .settings.clients |= (map(select(.email != $e)) + 
-                                        (if .protocol == "vless" or .protocol == "vmess" then [{"id": $u, "email": $e}]
-                                         elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then [{"auth": $u, "email": $e}]
-                                         else [{"password": $u, "email": $e}] end))
+                                    if .protocol == "vless" or .protocol == "vmess" then
+                                        .settings.clients |= (map(select(.email != $e)) + [{"id": $u, "email": $e}])
+                                    elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                                        .settings.clients |= (map(select(.email != $e)) + [{"auth": $u, "email": $e}])
+                                    else
+                                        .settings.clients |= (map(select(.email != $e)) + [{"password": $u, "email": $e}])
+                                    end
                                 elif .settings.users != null then
                                     .settings.users |= (map(select(.email != $e)) + [{"password": $u, "email": $e}])
                                 elif .users != null then
@@ -284,7 +286,7 @@ echo "-----------------------------------------------------------------" >> "$TE
                                 else . end
                             )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
                     else
-                        # Chỉ xóa user (đúng cho trạng thái disabled)
+                        # Trạng thái disabled: Chỉ xóa (giữ nguyên logic gốc của bạn)
                         jq --arg e "$username" 'map(if .settings.clients != null then .settings.clients |= map(select(.email != $e)) elif .settings.users != null then .settings.users |= map(select(.email != $e)) else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
                     fi
                     apply_config
