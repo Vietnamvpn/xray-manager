@@ -340,9 +340,14 @@ add_user() {
 
 delete_user() {
     echo -e "\n${YELLOW}================ XÓA USER ==============${NC}"
-    echo -e "${RED}Lưu ý:${NC} Nhập Email/Tên User cần xóa. Để trống sẽ xóa TẤT CẢ User."
+    echo -e "${RED}Lưu ý:${NC} Nhập Email/Tên User cần xóa. Nhập 0 để quay lại. Để trống sẽ xóa TẤT CẢ User."
     echo -n "${CYAN}Nhập Tên User Cần Xóa:${NC}"
     read email
+    
+    # KIỂM TRA QUAY LẠI
+    if [ "$email" == "0" ]; then
+        return
+    fi
     
     # TRƯỜNG HỢP 1: XÓA TẤT CẢ
     if [ -z "$email" ]; then
