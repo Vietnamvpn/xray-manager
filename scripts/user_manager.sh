@@ -253,7 +253,7 @@ add_user() {
     # BƯỚC KIỂM TRA ĐIỀU HƯỚNG SANG NODES.SH KHI CHƯA CÓ NODE NÀO
     if [ ! -s "$NODE_DB" ] || [ "$(jq '. | length' "$NODE_DB" 2>/dev/null || echo 0)" -eq 0 ]; then
         echo -e "\n${RED}[THÔNG BÁO] Bạn chưa được tạo inbound nào.${NC}"
-        echo -n "Bạn có muốn tạo inbound mới không? (nhấn y rồi nhấn enter để mở trang thêm node, để trống nhấn enter quay lại): "
+        echo -n "Bạn có muốn tạo inbound mới không? nhấn y để thêm node, để trống sẽ quay lại): "
         local choose_node
         read choose_node
         
