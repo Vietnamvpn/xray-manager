@@ -250,6 +250,25 @@ add_user() {
        '. += [{"email": $email, "uuid": $uuid, "quota_gb": $quota, "status": "active"}]' \
        "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
        
+    # BƯỚC KIỂM TRA ĐIỀU HƯỚNG SANG NODES.SH KHI CHƯA CÓ NODE NÀO
+    if [ ! -s "$NODE_DB" ] || [ "$(jq '. | length' "$NODE_DB" 2>/dev/null || echo 0)" -eq 0 ]; then
+        echo -e "\n${RED}[THÔNG BÁO] Bạn chưa được tạo inbound nào.${NC}"
+        echo -n "Bạn có muốn tạo inbound mới không? (nhấn y rồi nhấn enter để mở trang thêm node, để trống nhấn enter quay lại): "
+        local choose_node
+        read choose_node
+        
+        if [[ "$choose_node" == "y" || "$choose_node" == "Y" ]]; then
+            local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+            if [ -f "${current_dir}/nodes.sh" ]; then
+                source "${current_dir}/nodes.sh"
+            else
+                echo -e "${RED}[LỖI] Không tìm thấy file nodes.sh để cấu hình node!${NC}"
+                sleep 2
+            fi
+        fi
+        return
+    fi
+
     # 2. Vòng lặp chọn Node (Bắt nhập lại nếu sai)
     local target_port=""
     while true; do
