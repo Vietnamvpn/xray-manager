@@ -67,7 +67,7 @@ push_admin_nodes() {
         # 1. Lấy IP Public của VPS (Để kiểm tra kết nối từ ngoài vào)
         local pub_ip=$(curl -s https://ifconfig.me)
         
-        # [MỚI] Lấy tên quốc gia dựa trên IP Public (Xóa khoảng trắng nếu có)
+        # Lấy tên quốc gia dựa trên IP Public (Xóa khoảng trắng nếu có)
         local country=$(curl -s "http://ip-api.com/line/$pub_ip?fields=country" | sed 's/ //g')
         [ -z "$country" ] && country="Unknown"
 
@@ -95,12 +95,12 @@ push_admin_nodes() {
             fi
         done < <(jq -r '.[] | select(.port != null) | "\(.port) \(.protocol)"' "$NODE_DB" | sort -u)
 
-        # 4. Gắn status vào JSON, lọc client "admin" và đổi tag theo IP Quốc Gia
+        # 4. Gắn status vào JSON, lọc client "admin" và thay thế HOÀN TOÀN tag thành TênQuốcGia-01, 02...
         local admin_nodes=$(jq -c --argjson statuses "$status_json" --arg country "$country" '
             map(.settings.clients |= map(select(.email == "admin"))) | 
             map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")}) |
             to_entries | 
-            map(.value | .tag = (((.tag // "node") | split("#")[0]) + "#" + $country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring)))
+            map(.value | .tag = ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring)))
         ' "$NODE_DB")
         
         # 5. Gói payload
