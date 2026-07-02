@@ -259,10 +259,10 @@ add_user() {
         
         if [[ "$choose_node" == "y" || "$choose_node" == "Y" ]]; then
             local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-            if [ -f "${current_dir}/nodes.sh" ]; then
-                source "${current_dir}/nodes.sh"
+            if [ -f "${current_dir}/node_manager.sh" ]; then
+                source "${current_dir}/node_manager.sh"
             else
-                echo -e "${RED}[LỖI] Không tìm thấy file nodes.sh để cấu hình node!${NC}"
+                echo -e "${RED}[LỖI] Không tìm thấy file node_manager.sh để cấu hình node!${NC}"
                 sleep 2
             fi
         fi
