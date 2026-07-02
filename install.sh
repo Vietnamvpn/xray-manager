@@ -105,11 +105,31 @@ fi
 
 log_info "Bắt đầu tải và cài đặt Xray-core..."
 
-# Tải và cài đặt Xray-core thông qua script chính thức
-if ! bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install; then
-    log_info "[LỖI] Quá trình cài đặt lõi Xray-core thất bại. Vui lòng kiểm tra lại kết nối mạng hệ thống."
+# Nhận diện kiến trúc hệ thống
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64) ARCH="64" ;;
+    aarch64) ARCH="arm64-v8a" ;;
+    *) log_info "[LỖI] Kiến trúc $ARCH không được hỗ trợ."; exit 1 ;;
+esac
+
+# Lấy tag phiên bản mới nhất từ kho lưu trữ Vietnamvpn/Xray-core
+LATEST_VERSION=$(curl -s https://api.github.com/repos/Vietnamvpn/Xray-core/releases/latest | jq -r .tag_name)
+if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
+    log_info "[LỖI] Không thể lấy thông tin phiên bản Xray-core mới nhất từ GitHub."
     exit 1
 fi
+
+log_info "Tìm thấy phiên bản mới nhất: ${LATEST_VERSION}. Đang tiến hành tải về..."
+if ! wget -O /tmp/xray.zip "https://github.com/Vietnamvpn/Xray-core/releases/download/${LATEST_VERSION}/Xray-linux-${ARCH}.zip"; then
+    log_info "[LỖI] Quá trình tải lõi Xray-core thất bại. Vui lòng kiểm tra lại kết nối mạng hệ thống."
+    exit 1
+fi
+
+# Giải nén và cấu hình tệp thực thi
+unzip -o /tmp/xray.zip -d /usr/local/bin/ xray
+chmod +x /usr/local/bin/xray
+rm -f /tmp/xray.zip
 
 # Thiết lập thư mục cấu hình Xray
 mkdir -p "${XRAY_CONFIG_DIR}" || { log_info "[LỖI] Không thể tạo thư mục cấu hình ${XRAY_CONFIG_DIR}"; exit 1; }
