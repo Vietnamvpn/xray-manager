@@ -100,7 +100,7 @@ push_admin_nodes() {
             map(.settings.clients |= map(select(.email == "admin"))) | 
             map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")}) |
             to_entries | 
-            map(.value | .tag = ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring)))
+            map(.value + {tag: ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring))})
         ' "$NODE_DB")
         
         # 5. Gói payload
