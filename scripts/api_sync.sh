@@ -227,6 +227,7 @@ echo "-----------------------------------------------------------------" >> "$TE
     # Kiểm tra xem có JSON hợp lệ và có tasks không
     if echo "$response" | jq -e '.tasks' >/dev/null 2>&1; then
         local tasks_count=$(echo "$response" | jq '.tasks | length')
+        local needs_apply=false
         
         for (( i=0; i<$tasks_count; i++ )); do
             local task_id=$(echo "$response" | jq -r ".tasks[$i].id")
@@ -266,13 +267,13 @@ echo "-----------------------------------------------------------------" >> "$TE
             else . end
         )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
     
-    apply_config
+    needs_apply=true
     ;;
                 "delete_user")
                     # Lệnh jq gốc từ file cũ của ông
                     jq --arg e "$username" 'del(.[] | select(.email == $e))' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
                     jq --arg e "$username" 'map(if .settings.clients != null then .settings.clients |= map(select(.email != $e)) elif .settings.users != null then .settings.users |= map(select(.email != $e)) else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
-                    apply_config
+                    needs_apply=true
                     ;;
                 "toggle_user")
                     # 1. Cập nhật trạng thái trong USER_DB
@@ -301,7 +302,7 @@ echo "-----------------------------------------------------------------" >> "$TE
                         # Trạng thái disabled: Chỉ xóa (giữ nguyên logic gốc của bạn)
                         jq --arg e "$username" 'map(if .settings.clients != null then .settings.clients |= map(select(.email != $e)) elif .settings.users != null then .settings.users |= map(select(.email != $e)) else . end)' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
                     fi
-                    apply_config
+                    needs_apply=true
                     ;;
                 "reset_token")
                     # Cập nhật UUID mới trong users.json
@@ -329,7 +330,7 @@ echo "-----------------------------------------------------------------" >> "$TE
                                 .users |= map(if .email == $e then {"password": $u, "email": $e} else . end)
                             else . end
                         )' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
-                    apply_config
+                    needs_apply=true
                     ;;
                 *)
                     task_status="failed"
@@ -353,6 +354,9 @@ echo "-----------------------------------------------------------------" >> "$TE
                  -H "Content-Type: application/json" \
                  -d "$update_payload" > /dev/null
         done
+    if [ "$needs_apply" = true ]; then
+            apply_config
+        fi
     fi
 }
 
