@@ -121,6 +121,7 @@ add_node() {
         esac
 
         local tpl_file=""
+        local transport=""
         # Chỉ quét và hiển thị menu cho vless
         if [ "$protocol" == "vless" ]; then
             local template_path="${TEMPLATES_DIR}/${protocol}"
@@ -334,35 +335,33 @@ add_node() {
     local users_json=$(cat "$USER_DB")
     local user_count=$(echo "$users_json" | jq '. | length')
 
-    # TRƯỜNG HỢP 1: ĐỂ TRỐNG -> GÁN TẤT CẢ USER
+    # TRƯỜNG HỢP 1: ĐỂ TRỐNG -> GÁN TẤT CẢ USER HOẶC LƯU CẤU HÌNH RỖNG
     if [ -z "$username" ]; then
         if [ "$user_count" -eq 0 ]; then
-            echo -e "${RED}[LỖI] Hệ thống chưa có User nào! Vui lòng nhập tên để tạo mới.${NC}"
-            read -n 1 -s -r -p "Bấm phím để nhập tên..."
-            add_node 
-            return
+            echo -e "${YELLOW}-> Hệ thống chưa có User. Node sẽ được lưu với cấu hình mặc định (chưa gán user).${NC}"
+            cp /tmp/session_nodes.json /tmp/session_nodes_final.json
+        else
+            echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
+            
+            # Tự động nhận diện cấu trúc mảng trong template để map dữ liệu chuẩn
+            jq --argjson us "$users_json" '
+                map(
+                    if .settings.users != null then
+                        .settings.users = ($us | map({password: .uuid, email: .email}))
+                    elif .settings.clients != null then
+                        if .protocol == "vless" or .protocol == "vmess" then
+                            .settings.clients = ($us | map({id: .uuid, email: .email}))
+                        elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
+                            .settings.clients = ($us | map({auth: .uuid, email: .email}))
+                        else
+                            .settings.clients = ($us | map({password: .uuid, email: .email}))
+                        end
+                    elif .users != null then
+                        .users = ($us | map({password: .uuid, email: .email}))
+                    else . end
+                )
+            ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
         fi
-        
-        echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
-        
-    # Tự động nhận diện cấu trúc mảng trong template để map dữ liệu chuẩn
-jq --argjson us "$users_json" '
-    map(
-        if .settings.users != null then
-            .settings.users = ($us | map({password: .uuid, email: .email}))
-        elif .settings.clients != null then
-            if .protocol == "vless" or .protocol == "vmess" then
-                .settings.clients = ($us | map({id: .uuid, email: .email}))
-            elif .protocol == "hysteria" or .protocol == "hy2" or .protocol == "hysteria2" then
-                .settings.clients = ($us | map({auth: .uuid, email: .email}))
-            else
-                .settings.clients = ($us | map({password: .uuid, email: .email}))
-            end
-        elif .users != null then
-            .users = ($us | map({password: .uuid, email: .email}))
-        else . end
-    )
-' /tmp/session_nodes.json > /tmp/session_nodes_final.json
 
     # TRƯỜNG HỢP 2: NHẬP TÊN -> GÁN CỤ THỂ
     else
@@ -409,8 +408,25 @@ jq --argjson us "$users_json" '
     
     rm -f /tmp/session_nodes.json /tmp/single_node.json /tmp/session_nodes_final.json
     
-    # KÍCH HOẠT CẤU HÌNH
+    # KÍCH HOẠT CẤU HÌNH (Lúc này Node đã chắc chắn được lưu an toàn)
     apply_config
+    
+    # =================================================================
+    # BƯỚC MỚI: HỎI CHUYỂN MENU NẾU CHƯA CÓ USER NÀO
+    # =================================================================
+    if [ -z "$username" ] && [ "$user_count" -eq 0 ]; then
+        echo -e "\n${YELLOW}[THÔNG BÁO] Node đã được tạo thành công, nhưng hệ thống vẫn chưa có User nào để kết nối!${NC}"
+        read -p "Bạn có muốn chuyển sang Menu Quản Lý User để thêm mới không? (y/n - để trống sẽ quay lại menu Node): " ask_user_menu
+        if [[ "$ask_user_menu" == "y" || "$ask_user_menu" == "Y" ]]; then
+            if [ -f "${SCRIPTS_DIR}/user_manager.sh" ]; then
+                bash "${SCRIPTS_DIR}/user_manager.sh"
+            else
+                bash "${BASE_DIR}/user_manager.sh"
+            fi
+        fi
+        return
+    fi
+
     read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại menu..."
 }
 
