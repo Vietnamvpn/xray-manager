@@ -22,6 +22,7 @@ setup_api() {
     clear
     echo -e "${BLUE}======= CẤU HÌNH KẾT NỐI API ========${NC}"
     echo -e "${RED}Lưu ý:${NC} Nếu để trống, sẽ giữ nguyên giá trị cũ."
+    echo -e "Domain mẫu: https://example.com/api/node_sync.php"
     echo -e ""
     
     # 1. Lấy cấu hình hiện tại đang có (nếu chưa có thì bỏ trống hoặc dùng mặc định)
@@ -38,7 +39,6 @@ setup_api() {
     fi
 
     # 2. Hiển thị lựa chọn sửa, nếu nhấn Enter sẽ tự lấy lại giá trị cũ
-
     echo -e "Hiện tại: ${YELLOW}${current_domain}${NC}"
     read -p "Nhập URL File PHP: " input_domain
 

@@ -131,6 +131,11 @@ unzip -o /tmp/xray.zip -d /usr/local/bin/ xray
 chmod +x /usr/local/bin/xray
 rm -f /tmp/xray.zip
 
+# BỔ SUNG VÀO ĐÂY:
+log_info "Đang tải dữ liệu định tuyến (geosite/geoip)..."
+wget -O /usr/local/bin/geosite.dat https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat
+wget -O /usr/local/bin/geoip.dat https://github.com/v2fly/geoip/releases/latest/download/geoip.dat
+
 # Thiết lập thư mục cấu hình Xray
 mkdir -p "${XRAY_CONFIG_DIR}" || { log_info "[LỖI] Không thể tạo thư mục cấu hình ${XRAY_CONFIG_DIR}"; exit 1; }
 
