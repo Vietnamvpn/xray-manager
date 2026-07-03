@@ -101,6 +101,8 @@ show_node_menu() {
 add_node() {
     mkdir -p /tmp
     local sess_file="/tmp/session_nodes_${$}.json"
+    local single_file="/tmp/single_node_${$}.json"
+    local final_file="/tmp/session_nodes_final_${$}.json"
     echo "[]" > "$sess_file"
     
     while true; do
@@ -199,7 +201,7 @@ add_node() {
             while true; do
                 port=$((RANDOM % 55000 + 10000))
                 local dup_db=$(jq -e --argjson p "$port" '.[] | select(.port == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
-                local dup_tmp=$(jq -e --argjson p "$port" '.[] | select(.port == $p)' /tmp/session_nodes.json >/dev/null 2>&1 && echo "yes" || echo "no")
+                local dup_tmp=$(jq -e --argjson p "$port" '.[] | select(.port == $p)' "$sess_file" >/dev/null 2>&1 && echo "yes" || echo "no")
                 if [ "$dup_db" == "no" ] && [ "$dup_tmp" == "no" ]; then break; fi
             done
             echo -e "${BLUE}-> Đã tự điền Port: $port${NC}"
@@ -304,12 +306,12 @@ add_node() {
             (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .streamSettings.finalmask then
                 .streamSettings.finalmask.udp[0].settings.password = $obfs
              else . end)
-        ' "$tpl_file" > /tmp/single_node.json 2>/dev/null; then
+        ' "$tpl_file" > "$single_file" 2>/dev/null; then
             echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
             sleep 3
             continue
     fi
-    jq --slurpfile n /tmp/single_node.json '. += $n' /tmp/session_nodes.json > /tmp/session_nodes.tmp && mv /tmp/session_nodes.tmp /tmp/session_nodes.json
+    jq --slurpfile n "$single_file" '. += $n' "$sess_file" > "${sess_file}.tmp" && mv "${sess_file}.tmp" "$sess_file"
 
         echo -e "${GREEN}[OK] Đã cấu hình xong Node: $tag${NC}"
         echo ""
@@ -324,7 +326,7 @@ add_node() {
     [ ! -f "$USER_DB" ] && echo "[]" > "$USER_DB"
     
     # Kiểm tra xem có node nào trong phiên tạo không
-    local count=$(jq '. | length' /tmp/session_nodes.json 2>/dev/null || echo 0)
+    local count=$(jq '. | length' "$sess_file" 2>/dev/null || echo 0)
     if [ "$count" -eq 0 ]; then return; fi
 
     clear
@@ -340,7 +342,7 @@ add_node() {
     if [ -z "$username" ]; then
         if [ "$user_count" -eq 0 ]; then
             echo -e "${YELLOW}-> Hệ thống chưa có User. Node sẽ được lưu với cấu hình mặc định (chưa gán user).${NC}"
-            cp /tmp/session_nodes.json /tmp/session_nodes_final.json
+            cp "$sess_file" "$final_file"
         else
             echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
             
@@ -361,7 +363,7 @@ add_node() {
                         .users = ($us | map({password: .uuid, email: .email}))
                     else . end
                 )
-            ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
+            ' "$sess_file" > "$final_file"
         fi
 
     # TRƯỜNG HỢP 2: NHẬP TÊN -> GÁN CỤ THỂ
@@ -395,11 +397,10 @@ add_node() {
                     .users = [{"password": $cred, "email": $email}]
                 else . end
             )
-        ' /tmp/session_nodes.json > /tmp/session_nodes_final.json
+        ' "$sess_file" > "$final_file"
     fi
 
     # LƯU VÀO DATABASE CHÍNH
-    local final_file="/tmp/session_nodes_final.json"
     (
         flock -x 200
         if ! jq --slurpfile new_nodes "$final_file" '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
@@ -411,11 +412,11 @@ add_node() {
 
     if [ $? -ne 0 ]; then
         echo -e "${RED}[LỖI] Không thể lưu vào Database.${NC}"
-        rm -f "${NODE_DB}.tmp" "$sess_file" "/tmp/single_node_${$}.json" "$final_file"
+        rm -f "${NODE_DB}.tmp" "$sess_file" "$single_file" "$final_file"
         return
     fi
     
-    rm -f /tmp/session_nodes.json /tmp/single_node.json /tmp/session_nodes_final.json
+    rm -f "$sess_file" "$single_file" "$final_file"
     
     # KÍCH HOẠT CẤU HÌNH (Lúc này Node đã chắc chắn được lưu an toàn)
     apply_config
