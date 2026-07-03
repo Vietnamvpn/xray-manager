@@ -31,6 +31,12 @@ setup_api() {
     # Giữ nguyên trạng thái Bật/Tắt hiện tại, nếu file mới tinh thì mặc định là true (Bật)
     local current_enabled="${API_ENABLED:-true}"
 
+    # [BỔ SUNG] Kiểm tra và thông báo nếu chưa có cấu hình
+    if [ -z "$current_domain" ] || [ -z "$current_token" ]; then
+        echo -e "${YELLOW}Thông báo: Hiện tại chưa có cấu hình kết nối API nào! Vui lòng thiết lập ngay bên dưới.${NC}"
+        echo -e ""
+    fi
+
     # 2. Hiển thị lựa chọn sửa, nếu nhấn Enter sẽ tự lấy lại giá trị cũ
 
     echo -e "Hiện tại: ${YELLOW}${current_domain}${NC}"
@@ -407,6 +413,18 @@ show_menu() {
     case $choice in
         1) setup_api ;;
         2) 
+           # [BỔ SUNG] Kiểm tra trạng thái và cấu hình API trước khi đồng bộ
+           if [ "${API_ENABLED:-true}" = "false" ]; then
+               echo -e "${RED}Thông báo: Liên kết API hiện đang TẮT. Vui lòng bật (Phím 3) trước khi đồng bộ!${NC}"
+               sleep 2
+               return
+           fi
+           if [ -z "$API_DOMAIN" ] || [ -z "$API_TOKEN" ] || [ -z "$API_PORT" ]; then
+               echo -e "${YELLOW}Thông báo: Chưa có cấu hình API. Vui lòng chọn phím 1 để thiết lập trước!${NC}"
+               sleep 2
+               return
+           fi
+
            echo -e "${BLUE}Đang đồng bộ...${NC}"
            sync_process 
            echo -e "${GREEN}Đã chạy xong quy trình đồng bộ.${NC}"
