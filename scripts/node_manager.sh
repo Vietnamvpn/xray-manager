@@ -100,7 +100,8 @@ show_node_menu() {
 # =================================================================
 add_node() {
     mkdir -p /tmp
-    echo "[]" > /tmp/session_nodes.json
+    local sess_file="/tmp/session_nodes_${$}.json"
+    echo "[]" > "$sess_file"
     
     while true; do
         clear
@@ -398,12 +399,19 @@ add_node() {
     fi
 
     # LƯU VÀO DATABASE CHÍNH
-    if ! jq --slurpfile new_nodes /tmp/session_nodes_final.json '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
+    (
+        flock -x 200
+        if ! jq --slurpfile new_nodes "$final_file" '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
+            exit 1
+        else
+            mv "${NODE_DB}.tmp" "$NODE_DB"
+        fi
+    ) 200>/var/lock/node_manager.lock
+
+    if [ $? -ne 0 ]; then
         echo -e "${RED}[LỖI] Không thể lưu vào Database.${NC}"
-        rm -f "${NODE_DB}.tmp" /tmp/session_nodes* /tmp/single_node*
+        rm -f "${NODE_DB}.tmp" "$sess_file" "/tmp/single_node_${$}.json" "$final_file"
         return
-    else
-        mv "${NODE_DB}.tmp" "$NODE_DB"
     fi
     
     rm -f /tmp/session_nodes.json /tmp/single_node.json /tmp/session_nodes_final.json
@@ -491,7 +499,7 @@ update_node() {
         map(if .port|tostring == $p then
             (if has("domain") then .domain = $d else . end) |
             .port = ($np|tonumber) |
-            .tag = (.protocol + "-" + $np) |
+            .tag = ((.protocol // "unknown") + "-" + $np) |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
             (if .streamSettings.wsSettings then .streamSettings.wsSettings.headers.Host = $s else . end) |
             (if .streamSettings.realitySettings then 
