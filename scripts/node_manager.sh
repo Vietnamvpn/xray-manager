@@ -399,6 +399,7 @@ add_node() {
     fi
 
     # LƯU VÀO DATABASE CHÍNH
+    local final_file="/tmp/session_nodes_final.json"
     (
         flock -x 200
         if ! jq --slurpfile new_nodes "$final_file" '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
