@@ -7,6 +7,7 @@ xray-manager/
 │   ├── utils.sh                # [HELPER] Thư viện hàm dùng chung: color, check_root, log, exit.
 │   ├── user_manager.sh         # [USER] Thao tác: Thêm, xóa, khóa, mở user, tính dung lượng.
 │   ├── node_manager.sh         # [NODE] Thao tác: Tạo/Xóa/Sửa node (Port, Domain, SNI).
+|   ├── relay_manager.sh
 │   ├── ssl_manager.sh          # [SSL] Tích hợp ACME/Cloudflare, cấp và gia hạn chứng chỉ.
 │   ├── api_sync.sh             # [SYNC] Module kết nối, đẩy/kéo dữ liệu từ web trung tâm.
 │   └── update.sh               # [GIT] Module cập nhật mã nguồn (git pull) từ repo.
@@ -27,4 +28,6 @@ xray-manager/
 └── data/                       # [DATA] Thư mục lưu trữ dữ liệu vận hành thực tế.
     ├── users.json              # [DB USER] Lưu danh sách tài khoản, limit, trạng thái.
     ├── nodes.json              # [DB NODE] Lưu thông tin các inbound, port, path đang dùng.
+    ├── outbounds.json
+    ├── routing.json
     └── system.log              # [LOG] File ghi chép nhật ký hoạt động hệ thống.
