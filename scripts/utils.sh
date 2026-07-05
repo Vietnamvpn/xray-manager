@@ -42,41 +42,41 @@ init_dirs() {
 }
 
 apply_config() {
-    local active_config="${XRAY_CONFIG_DIR}/config.json"[cite: 5]
-    local base_tpl="${TEMPLATES_DIR}/base.json"[cite: 5]
+    local active_config="${XRAY_CONFIG_DIR}/config.json"
+    local base_tpl="${TEMPLATES_DIR}/base.json"
     
-    if [ ! -f "$base_tpl" ]; then[cite: 5]
-        echo -e "${RED}[LỖI] Không tìm thấy file mẫu gốc tại: $base_tpl${NC}"[cite: 5]
-        return 1[cite: 5]
-    fi[cite: 5]
+    if [ ! -f "$base_tpl" ]; then
+        echo -e "${RED}[LỖI] Không tìm thấy file mẫu gốc tại: $base_tpl${NC}"
+        return 1
+    fi
 
     if ! jq --slurpfile nodes "$NODE_DB" \
             --slurpfile outbounds "${DATA_DIR}/outbounds.json" \
             --slurpfile routing "${DATA_DIR}/routing.json" \
             '.inbounds += $nodes[0] | .outbounds += $outbounds[0] | .routing.rules = $routing[0] + .routing.rules' \
             "$base_tpl" > "${active_config}.tmp" 2>/dev/null; then
-        echo -e "${RED}[LỖI] Lỗi cú pháp JSON khi trộn dữ liệu vào cấu hình chính.${NC}"[cite: 5]
-        rm -f "${active_config}.tmp"[cite: 5]
-        return 1[cite: 5]
-    fi[cite: 5]
+        echo -e "${RED}[LỖI] Lỗi cú pháp JSON khi trộn dữ liệu vào cấu hình chính.${NC}"
+        rm -f "${active_config}.tmp"
+        return 1
+    fi
 
-    mv "${active_config}.tmp" "$active_config"[cite: 5]
-    echo -e "${YELLOW}Đang khởi động lại dịch vụ Xray Core...${NC}"[cite: 5]
-    systemctl restart xray 2>/dev/null[cite: 5]
+    mv "${active_config}.tmp" "$active_config"
+    echo -e "${YELLOW}Đang khởi động lại dịch vụ Xray Core...${NC}"
+    systemctl restart xray 2>/dev/null
     
-    # KIỂM TRA TRẠNG THÁI SỐNG/CHẾT THỰC TẾ CỦA TIẾN TRÌNH[cite: 5]
-    sleep 1[cite: 5]
-    if systemctl is-active --quiet xray; then[cite: 5]
-        echo -e ""[cite: 5]
-        echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"[cite: 5]
-        echo -e "${GREEN}----------------------------------------${NC}"[cite: 5]
-        return 0[cite: 5]
-    else[cite: 5]
-        echo -e ""[cite: 5]
-        echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"[cite: 5]
-        echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"[cite: 5]
-        echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"[cite: 5]
-        echo -e "${RED}-----------------------------------------------${NC}"[cite: 5]
-        return 1[cite: 5]
-    fi[cite: 5]
+    # KIỂM TRA TRẠNG THÁI SỐNG/CHẾT THỰC TẾ CỦA TIẾN TRÌNH
+    sleep 1
+    if systemctl is-active --quiet xray; then
+        echo -e ""
+        echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"
+        echo -e "${GREEN}----------------------------------------${NC}"
+        return 0
+    else
+        echo -e ""
+        echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"
+        echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"
+        echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"
+        echo -e "${RED}-----------------------------------------------${NC}"
+        return 1
+    fi
 }
