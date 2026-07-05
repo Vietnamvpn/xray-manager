@@ -76,6 +76,8 @@ push_admin_nodes() {
         # Lấy tên quốc gia dựa trên IP Public (Xóa khoảng trắng nếu có)
         local country=$(curl -s "http://ip-api.com/line/$pub_ip?fields=country" | sed 's/ //g')
         [ -z "$country" ] && country="Unknown"
+        # Lấy mã quốc gia từ API gốc để chuyển thành cờ emoji
+        local c_code=$(curl -s "http://ip-api.com/line/$pub_ip?fields=countryCode")
 
         # 2. Khởi tạo cấu trúc dữ liệu trạng thái trống
         local status_json="{}"
@@ -102,11 +104,11 @@ push_admin_nodes() {
         done < <(jq -r '.[] | select(.port != null) | "\(.port) \(.protocol)"' "$NODE_DB" | sort -u)
 
         # 4. Gắn status vào JSON, lọc client "admin" và thay thế HOÀN TOÀN tag thành TênQuốcGia-01, 02...
-        local admin_nodes=$(jq -c --argjson statuses "$status_json" --arg country "$country" '
+        local admin_nodes=$(jq -c --argjson statuses "$status_json" --arg country "$country" --arg cc "$c_code" '
             map(.settings.clients |= map(select(.email == "admin"))) | 
             map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")}) |
             to_entries | 
-            map(.value + {tag: ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring))})
+            map(.value + {tag: ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring) + (if $cc != "" then " " + ($cc | explode | map(. + 127397) | implode) else "" end))})
         ' "$NODE_DB")
         
         # 5. Gói payload
