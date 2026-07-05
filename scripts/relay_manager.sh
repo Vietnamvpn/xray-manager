@@ -23,7 +23,7 @@ parse_proxy_link() {
     local custom_tag="$2"
     
     local proto=$(echo "$link" | grep -o '^[a-zA-Z0-9]*')
-    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" && "$proto" != "hy2" ]]; then
+    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" && "$proto" != "hysteria2" ]]; then
         echo "ERR_PROTO"
         return 1
     fi
@@ -195,7 +195,7 @@ EOF
   "tag": "$tag"
 }
 EOF
-    elif [ "$proto" == "hy2" ]; then
+    elif [ "$proto" == "hysteria2" ]; then
         local skip_cert_verify="false"
         [ "$insecure" == "1" ] && skip_cert_verify="true"
         # Giao thức Hysteria2 trên các lõi (Xray fork/Sing-box) sử dụng cấu trúc chuyên biệt không qua streamSettings
@@ -236,7 +236,7 @@ list_outbounds() {
 add_outbound() {
     clear
     echo -e "${BLUE}=== THÊM NODE TRUNG GIAN (OUTBOUND RELAY) ===${NC}"
-    echo -e "Hỗ trợ các liên kết chuẩn: vless://, trojan://, vmess:// hoặc hy2://"
+    echo -e "Hỗ trợ các liên kết chuẩn: vless://, trojan://, vmess:// hoặc hysteria2://"
     echo -e "Nhập ${RED}0${NC} để quay lại."
     echo ""
     read -p "Nhập liên kết Node của bạn: " proxy_link
@@ -249,7 +249,7 @@ add_outbound() {
     local parsed_json=$(parse_proxy_link "$proxy_link" "$custom_tag")
     
     if [[ "$parsed_json" == "ERR_PROTO" ]]; then
-        echo -e "${RED}[LỖI] Hệ thống hiện tại chỉ hỗ trợ xử lý tự động liên kết định dạng VLESS, TROJAN, VMESS hoặc HY2!${NC}"
+        echo -e "${RED}[LỖI] Hệ thống hiện tại chỉ hỗ trợ xử lý tự động liên kết định dạng VLESS, TROJAN, VMESS hoặc HYSTERIA2!${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
     elif [[ "$parsed_json" == "ERR_FORMAT" ]]; then
         echo -e "${RED}[LỖI] Cú pháp chuỗi liên kết không đúng định dạng. Vui lòng kiểm tra lại IP/Cổng/UUID.${NC}"
