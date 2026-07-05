@@ -23,12 +23,78 @@ parse_proxy_link() {
     local custom_tag="$2"
     
     local proto=$(echo "$link" | grep -o '^[a-zA-Z0-9]*')
-    if [[ "$proto" != "vless" && "$proto" != "trojan" ]]; then
+    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" && "$proto" != "hy2" ]]; then
         echo "ERR_PROTO"
         return 1
     fi
     
-    # Trích xuất thông tin thô từ link
+    # ---------------------------------------------------------
+    # 1. Phân nhánh riêng cho vmess (vì link mã hóa base64)
+    # ---------------------------------------------------------
+    if [ "$proto" == "vmess" ]; then
+        local b64=$(echo "$link" | sed -e 's/^vmess:\/\///')
+        # Giải mã base64
+        local vmess_json=$(echo "$b64" | base64 -d 2>/dev/null)
+        if [ -z "$vmess_json" ]; then
+            echo "ERR_FORMAT"
+            return 1
+        fi
+        
+        # Bóc tách cấu hình vmess bằng grep/sed để không phụ thuộc vào jq
+        local v_add=$(echo "$vmess_json" | grep -o '"add": *"[^"]*"' | cut -d'"' -f4)
+        local v_port=$(echo "$vmess_json" | grep -o '"port": *[0-9]*' | grep -o '[0-9]*')
+        local v_id=$(echo "$vmess_json" | grep -o '"id": *"[^"]*"' | cut -d'"' -f4)
+        local v_net=$(echo "$vmess_json" | grep -o '"net": *"[^"]*"' | cut -d'"' -f4)
+        local v_tls=$(echo "$vmess_json" | grep -o '"tls": *"[^"]*"' | cut -d'"' -f4)
+        local v_sni=$(echo "$vmess_json" | grep -o '"sni": *"[^"]*"' | cut -d'"' -f4)
+        local v_path=$(echo "$vmess_json" | grep -o '"path": *"[^"]*"' | cut -d'"' -f4 | sed 's/\\//g')
+        local v_host=$(echo "$vmess_json" | grep -o '"host": *"[^"]*"' | cut -d'"' -f4)
+        local v_ps=$(echo "$vmess_json" | grep -o '"ps": *"[^"]*"' | cut -d'"' -f4)
+
+        local tag="$custom_tag"
+        [ -z "$tag" ] && tag="${v_ps:-relay-vmess-${v_port}}"
+        [ -z "$v_net" ] && v_net="tcp"
+
+        # Khởi tạo streamSettings cho vmess
+        local streamSettings="{\"network\": \"$v_net\""
+        
+        if [ "$v_tls" == "tls" ]; then
+            [ -z "$v_sni" ] && v_sni="$v_host"
+            streamSettings+=", \"security\": \"tls\", \"tlsSettings\": {\"serverName\": \"$v_sni\", \"allowInsecure\": false}"
+        fi
+
+        if [ "$v_net" == "ws" ]; then
+            streamSettings+=", \"wsSettings\": {\"path\": \"$v_path\", \"headers\": {\"Host\": \"$v_host\"}}"
+        elif [ "$v_net" == "grpc" ]; then
+            local serviceName=$(echo "$v_path" | sed 's/^\///')
+            streamSettings+=", \"grpcSettings\": {\"serviceName\": \"$serviceName\", \"multiMode\": false}"
+        fi
+        streamSettings+="}"
+
+        cat <<EOF
+{
+  "protocol": "vmess",
+  "settings": {
+    "vnext": [{
+      "address": "$v_add",
+      "port": $v_port,
+      "users": [{
+        "id": "$v_id",
+        "alterId": 0,
+        "security": "auto"
+      }]
+    }]
+  },
+  "streamSettings": $streamSettings,
+  "tag": "$tag"
+}
+EOF
+        return 0
+    fi
+
+    # ---------------------------------------------------------
+    # 2. Xử lý chuẩn URI cho vless, trojan, hy2
+    # ---------------------------------------------------------
     local user_info_host_port=$(echo "$link" | sed -e 's/^.*:\/\///' -e 's/\?.*$//' -e 's/#.*$//')
     local credential=$(echo "$user_info_host_port" | cut -d'@' -f1)
     local host_port=$(echo "$user_info_host_port" | cut -d'@' -f2)
@@ -59,17 +125,26 @@ parse_proxy_link() {
     local ws_host=$(echo "$query_string" | grep -o 'host=[^&]*' | cut -d= -f2)
     [ -z "$ws_host" ] && ws_host="$sni"
 
-    # Khởi tạo streamSettings cơ bản động
+    # Các tham số dành riêng cho VLESS Reality & XTLS
+    local flow=$(echo "$query_string" | grep -o 'flow=[^&]*' | cut -d= -f2)
+    local pbk=$(echo "$query_string" | grep -o 'pbk=[^&]*' | cut -d= -f2)
+    local sid=$(echo "$query_string" | grep -o 'sid=[^&]*' | cut -d= -f2)
+    local spx=$(echo "$query_string" | grep -o 'spx=[^&]*' | cut -d= -f2 | sed 's/%2F/\//g')
+    
+    # Các tham số dành riêng cho hy2
+    local insecure=$(echo "$query_string" | grep -o 'insecure=[^&]*' | cut -d= -f2)
+
+    # Khởi tạo streamSettings cơ bản động (dùng cho vless và trojan)
     local streamSettings="{\"network\": \"$net_type\""
     
-    # Thêm cấu hình TLS nếu có
     if [ "$security" == "tls" ]; then
         streamSettings+=", \"security\": \"tls\", \"tlsSettings\": {\"serverName\": \"$sni\", \"allowInsecure\": false"
         [ -n "$fp" ] && streamSettings+=", \"fingerprint\": \"$fp\""
         streamSettings+="}"
+    elif [ "$security" == "reality" ]; then
+        streamSettings+=", \"security\": \"reality\", \"realitySettings\": {\"serverName\": \"$sni\", \"fingerprint\": \"$fp\", \"publicKey\": \"$pbk\", \"shortId\": \"$sid\", \"spiderX\": \"$spx\"}"
     fi
     
-    # Thêm cấu hình mạng (WebSocket / gRPC)
     if [ "$net_type" == "ws" ]; then
         streamSettings+=", \"wsSettings\": {\"path\": \"$ws_path\", \"headers\": {\"Host\": \"$ws_host\"}}"
     elif [ "$net_type" == "grpc" ]; then
@@ -79,8 +154,12 @@ parse_proxy_link() {
     
     streamSettings+="}"
 
-    # Xây dựng chuỗi JSON tương ứng với từng giao thức cấu hình
+    # ---------------------------------------------------------
+    # 3. Xuất JSON theo từng giao thức 
+    # ---------------------------------------------------------
     if [ "$proto" == "vless" ]; then
+        local flow_setting=""
+        [ -n "$flow" ] && flow_setting="\"flow\": \"$flow\","
         cat <<EOF
 {
   "protocol": "vless",
@@ -91,6 +170,7 @@ parse_proxy_link() {
       "users": [{
         "id": "$credential",
         "encryption": "none",
+        $flow_setting
         "level": 0
       }]
     }]
@@ -112,6 +192,25 @@ EOF
     }]
   },
   "streamSettings": $streamSettings,
+  "tag": "$tag"
+}
+EOF
+    elif [ "$proto" == "hy2" ]; then
+        local skip_cert_verify="false"
+        [ "$insecure" == "1" ] && skip_cert_verify="true"
+        # Giao thức Hysteria2 trên các lõi (Xray fork/Sing-box) sử dụng cấu trúc chuyên biệt không qua streamSettings
+        cat <<EOF
+{
+  "protocol": "hysteria2",
+  "settings": {
+    "servers": [{
+      "address": "$host",
+      "port": $port,
+      "password": "$credential",
+      "sni": "$sni",
+      "skipCertVerify": $skip_cert_verify
+    }]
+  },
   "tag": "$tag"
 }
 EOF
@@ -423,9 +522,9 @@ while true; do
     echo -e "${BLUE}=======================================${NC}"
     echo -e "${CYAN}    HỆ THỐNG QUẢN LÝ ĐỊNH TUYẾN ĐA NODE   ${NC}"
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "1. Cài đặt liên kết kết nối Node ra (Outbounds)"
-    echo -e "2. Cài đặt bảng định tuyến bắc cầu (Routing)"
-    echo -e "0. Thoát ra ngoài Menu điều khiển hệ thống"
+    echo -e "1. Cài đặt Outbounds Relay"
+    echo -e "2. Cài đặt Routing Rules"
+    echo -e "0. Thoát khỏi trình quản lý"
     echo -e "${BLUE}=======================================${NC}"
     echo ""
     read -p "Vui lòng nhập số lựa chọn của bạn: " main_opt
