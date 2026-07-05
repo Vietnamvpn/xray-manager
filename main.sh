@@ -251,6 +251,7 @@ show_menu() {
     echo -e "4. ${CYAN}Đồng Bộ API${NC}          |   9. ${CYAN}Tạo Bộ Nhớ Ảo Swap${NC}"
     echo -e "5. ${CYAN}Cập Nhật Mã Nguồn${NC}    |   10. ${CYAN}Xem Trạng Thái VPS${NC}"
     echo -e "0. ${RED}Thoát${NC}                |   11. ${CYAN}Xem Log Xray Trực Tiếp${NC}"
+    echo -e "                                   |   12. ${CYAN}Quản Lý Định Tuyến${NC}"
     echo -e "${BLUE}======================================================================${NC}"
     echo -e ""
     echo -n "Nhập lựa chọn của bạn: "
@@ -306,6 +307,14 @@ while true; do
         9) setup_swap ;;
         10) check_vps ;;
         11) view_xray_logs ;;
+        12)
+            if [ -f "${SCRIPTS_DIR}/relay_manager.sh" ]; then
+                bash "${SCRIPTS_DIR}/relay_manager.sh"
+            else
+                log_warn "Module Relay Manager chưa được cài đặt."
+                read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+            fi
+            ;;
         0)
             log_info "Thoát chương trình."
             exit 0

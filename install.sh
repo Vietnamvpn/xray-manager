@@ -69,6 +69,8 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
     mkdir -p "$INSTALL_DIR/data"
     [ -f "$INSTALL_DIR/data/users.json" ] || echo "[]" > "$INSTALL_DIR/data/users.json"
     [ -f "$INSTALL_DIR/data/nodes.json" ] || echo "[]" > "$INSTALL_DIR/data/nodes.json"
+    [ -f "$INSTALL_DIR/data/outbounds.json" ] || echo "[]" > "$INSTALL_DIR/data/outbounds.json"
+    [ -f "$INSTALL_DIR/data/routing.json" ] || echo "[]" > "$INSTALL_DIR/data/routing.json"
 
     # Phân quyền thực thi
     chmod +x "$INSTALL_DIR/main.sh"
