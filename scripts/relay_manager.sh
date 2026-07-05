@@ -23,7 +23,7 @@ parse_proxy_link() {
     local custom_tag="$2"
     
     local proto=$(echo "$link" | grep -o '^[a-zA-Z0-9]*')
-    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" && "$proto" != "hysteria2" ]]; then
+    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" && "$proto" != "hy2" && "$proto" != "hysteria2" ]]; then
         echo "ERR_PROTO"
         return 1
     fi
@@ -93,7 +93,7 @@ EOF
     fi
 
     # ---------------------------------------------------------
-    # 2. Xử lý chuẩn URI cho vless, trojan, hy2
+    # 2. Xử lý chuẩn URI cho vless, trojan, hy2, hysteria2
     # ---------------------------------------------------------
     local user_info_host_port=$(echo "$link" | sed -e 's/^.*:\/\///' -e 's/\?.*$//' -e 's/#.*$//')
     local credential=$(echo "$user_info_host_port" | cut -d'@' -f1)
@@ -106,10 +106,12 @@ EOF
         return 1
     fi
     
-    # Tạo nhãn định danh (Tag)
+    # Tạo nhãn định danh (Tag) và giải mã URL
     local tag="$custom_tag"
     if [ -z "$tag" ]; then
         tag=$(echo "$link" | grep -o '#.*$' | sed 's/#//')
+        # Giải mã URL Encoding (ví dụ %20 thành khoảng trắng)
+        tag=$(printf "%b" "${tag//%/\\x}")
         [ -z "$tag" ] && tag="relay-${proto}-${port}"
     fi
 
@@ -131,8 +133,9 @@ EOF
     local sid=$(echo "$query_string" | grep -o 'sid=[^&]*' | cut -d= -f2)
     local spx=$(echo "$query_string" | grep -o 'spx=[^&]*' | cut -d= -f2 | sed 's/%2F/\//g')
     
-    # Các tham số dành riêng cho hy2
+    # Các tham số dành riêng cho hy2 / hysteria2
     local insecure=$(echo "$query_string" | grep -o 'insecure=[^&]*' | cut -d= -f2)
+    local pinSHA256=$(echo "$query_string" | grep -o 'pinSHA256=[^&]*' | cut -d= -f2)
 
     # Khởi tạo streamSettings cơ bản động (dùng cho vless và trojan)
     local streamSettings="{\"network\": \"$net_type\""
@@ -195,9 +198,13 @@ EOF
   "tag": "$tag"
 }
 EOF
-    elif [ "$proto" == "hysteria2" ]; then
+    elif [[ "$proto" == "hy2" || "$proto" == "hysteria2" ]]; then
         local skip_cert_verify="false"
         [ "$insecure" == "1" ] && skip_cert_verify="true"
+        
+        local pin_setting=""
+        [ -n "$pinSHA256" ] && pin_setting="\"pinSHA256\": \"$pinSHA256\","
+
         # Giao thức Hysteria2 trên các lõi (Xray fork/Sing-box) sử dụng cấu trúc chuyên biệt không qua streamSettings
         cat <<EOF
 {
@@ -208,6 +215,7 @@ EOF
       "port": $port,
       "password": "$credential",
       "sni": "$sni",
+      $pin_setting
       "skipCertVerify": $skip_cert_verify
     }]
   },
