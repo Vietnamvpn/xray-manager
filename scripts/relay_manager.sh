@@ -2,10 +2,9 @@
 # Module quản lý tự động Outbounds Relay và Routing Rules cho xray-manager
 
 CURRENT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-cd "$CURRENT_DIR/.."
 
-source "./config.conf"[cite: 6]
-source "./scripts/utils.sh"[cite: 5]
+source "${CURRENT_DIR}/../config.conf"
+source "${CURRENT_DIR}/utils.sh"
 
 OUTBOUND_DB="${DATA_DIR}/outbounds.json"
 ROUTING_DB="${DATA_DIR}/routing.json"
