@@ -1,10 +1,17 @@
 #!/bin/bash
 # Module quản lý tự động Outbounds Relay và Routing Rules cho xray-manager
 
+# Cố định đường dẫn gốc tuyệt đối để không bao giờ source hụt file
 CURRENT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+BASE_DIR="/etc/xray-manager"
 
-source "${CURRENT_DIR}/../config.conf"
-source "${CURRENT_DIR}/utils.sh"
+source "${BASE_DIR}/config.conf"
+
+# Nếu utils.sh nằm trong thư mục scripts cùng với relay_manager.sh:
+source "${BASE_DIR}/scripts/utils.sh" 
+
+# LƯU Ý: Nếu utils.sh nằm ở bên ngoài cùng chỗ với config.conf, 
+# hãy đổi dòng trên thành: source "${BASE_DIR}/utils.sh"
 
 OUTBOUND_DB="${DATA_DIR}/outbounds.json"
 ROUTING_DB="${DATA_DIR}/routing.json"
