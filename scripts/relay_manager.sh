@@ -47,6 +47,38 @@ parse_proxy_link() {
         [ -z "$tag" ] && tag="relay-${proto}-${port}"
     fi
 
+    # Lấy chuỗi tham số cấu hình nâng cao
+    local query_string=$(echo "$link" | grep -o '?[^#]*' | sed 's/^?//')
+    local net_type=$(echo "$query_string" | grep -o 'type=[^&]*' | cut -d= -f2)
+    [ -z "$net_type" ] && net_type="tcp"
+    
+    local security=$(echo "$query_string" | grep -o 'security=[^&]*' | cut -d= -f2)
+    local sni=$(echo "$query_string" | grep -o 'sni=[^&]*' | cut -d= -f2)
+    local fp=$(echo "$query_string" | grep -o 'fp=[^&]*' | cut -d= -f2)
+    local ws_path=$(echo "$query_string" | grep -o 'path=[^&]*' | cut -d= -f2 | sed 's/%2F/\//g')
+    local ws_host=$(echo "$query_string" | grep -o 'host=[^&]*' | cut -d= -f2)
+    [ -z "$ws_host" ] && ws_host="$sni"
+
+    # Khởi tạo streamSettings cơ bản động
+    local streamSettings="{\"network\": \"$net_type\""
+    
+    # Thêm cấu hình TLS nếu có
+    if [ "$security" == "tls" ]; then
+        streamSettings+=", \"security\": \"tls\", \"tlsSettings\": {\"serverName\": \"$sni\", \"allowInsecure\": false"
+        [ -n "$fp" ] && streamSettings+=", \"fingerprint\": \"$fp\""
+        streamSettings+="}"
+    fi
+    
+    # Thêm cấu hình mạng (WebSocket / gRPC)
+    if [ "$net_type" == "ws" ]; then
+        streamSettings+=", \"wsSettings\": {\"path\": \"$ws_path\", \"headers\": {\"Host\": \"$ws_host\"}}"
+    elif [ "$net_type" == "grpc" ]; then
+        local serviceName=$(echo "$query_string" | grep -o 'serviceName=[^&]*' | cut -d= -f2)
+        streamSettings+=", \"grpcSettings\": {\"serviceName\": \"$serviceName\", \"multiMode\": false}"
+    fi
+    
+    streamSettings+="}"
+
     # Xây dựng chuỗi JSON tương ứng với từng giao thức cấu hình
     if [ "$proto" == "vless" ]; then
         cat <<EOF
@@ -63,7 +95,7 @@ parse_proxy_link() {
       }]
     }]
   },
-  "streamSettings": { "network": "tcp" },
+  "streamSettings": $streamSettings,
   "tag": "$tag"
 }
 EOF
@@ -79,7 +111,7 @@ EOF
       "level": 0
     }]
   },
-  "streamSettings": { "network": "tcp" },
+  "streamSettings": $streamSettings,
   "tag": "$tag"
 }
 EOF
