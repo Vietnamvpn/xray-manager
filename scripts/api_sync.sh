@@ -103,12 +103,12 @@ push_admin_nodes() {
             fi
         done < <(jq -r '.[] | select(.port != null) | "\(.port) \(.protocol)"' "$NODE_DB" | sort -u)
 
-        # 4. Gắn status vào JSON, lọc client "admin" và thay thế HOÀN TOÀN tag thành TênQuốcGia-01, 02...
+        # 4. Gắn status vào JSON, lọc client "admin" và lấy đúng tag (nếu không có mới tạo tự động)
         local admin_nodes=$(jq -c --argjson statuses "$status_json" --arg country "$country" --arg cc "$c_code" '
             map(.settings.clients |= map(select(.email == "admin"))) | 
             map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")}) |
             to_entries | 
-            map(.value + {tag: ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring) + (if $cc != "" then " " + ($cc | explode | map(. + 127397) | implode) else "" end))})
+            map(.value + {tag: (.value.tag // ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring) + (if $cc != "" then " " + ($cc | explode | map(. + 127397) | implode) else "" end)))})
         ' "$NODE_DB")
         
         # 5. Gói payload
