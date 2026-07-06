@@ -468,6 +468,7 @@ update_node() {
     echo -e "${BLUE}Đang cập nhật Node Port:${NC}${YELLOW} $target_port${NC}"
     echo -e "Domain hiện tại: ${YELLOW}$old_domain${NC}"
     echo -e "SNI hiện tại: ${YELLOW}$old_sni${NC}"
+    echo -e "Tag hiện tại: ${YELLOW}$(echo "$current_node" | jq -r '.tag')${NC}"
     echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
 
     read -p "Nhập Domain mới: " new_domain
