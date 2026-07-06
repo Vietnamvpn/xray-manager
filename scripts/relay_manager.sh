@@ -216,7 +216,7 @@ list_outbounds() {
 add_outbound() {
     clear
     echo -e "${BLUE}=== THÊM NODE TRUNG GIAN (OUTBOUND RELAY) ===${NC}"
-    echo -e "Hỗ trợ các liên kết chuẩn: vless://, trojan://, vmess:// hoặc hysteria2://"
+    echo -e "Hỗ trợ các liên kết chuẩn: vless://, trojan:// hoặc vmess://"
     echo -e "Nhập ${RED}0${NC} để quay lại."
     echo ""
     read -p "Nhập liên kết Node của bạn: " proxy_link
@@ -229,10 +229,16 @@ add_outbound() {
     local parsed_json=$(parse_proxy_link "$proxy_link" "$custom_tag")
     
     if [[ "$parsed_json" == "ERR_PROTO" ]]; then
-        echo -e "${RED}[LỖI] Hệ thống hiện tại chỉ hỗ trợ xử lý tự động liên kết định dạng VLESS, TROJAN, VMESS hoặc HYSTERIA2!${NC}"
+        echo -e "${RED}[LỖI] Hệ thống hiện tại chỉ hỗ trợ xử lý tự động liên kết định dạng VLESS, TROJAN hoặc VMESS!${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
     elif [[ "$parsed_json" == "ERR_FORMAT" ]]; then
         echo -e "${RED}[LỖI] Cú pháp chuỗi liên kết không đúng định dạng. Vui lòng kiểm tra lại IP/Cổng/UUID.${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+    fi
+
+    # Ngăn lỗi im lặng: Kiểm tra dữ liệu JSON có hợp lệ không trước khi lưu (đặc biệt cho VMESS)
+    if ! echo "$parsed_json" | jq -e . >/dev/null 2>&1; then
+        echo -e "${RED}[LỖI] Dữ liệu Node trích xuất bị lỗi (thường do link thiếu tham số hoặc sai cấu trúc). Không thể thêm!${NC}"
         read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
     fi
 
@@ -243,8 +249,13 @@ add_outbound() {
         read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
     fi
 
-    jq --argjson new_node "$parsed_json" '. += [$new_node]' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp" && mv "${OUTBOUND_DB}.tmp" "$OUTBOUND_DB"
-    echo -e "${GREEN}[THÀNH CÔNG] Đã thêm Node trung gian vào hệ thống dữ liệu.${NC}"
+    if jq --argjson new_node "$parsed_json" '. += [$new_node]' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp"; then
+        mv "${OUTBOUND_DB}.tmp" "$OUTBOUND_DB"
+        echo -e "${GREEN}[THÀNH CÔNG] Đã thêm Node trung gian vào hệ thống dữ liệu.${NC}"
+    else
+        echo -e "${RED}[LỖI] Đã xảy ra lỗi khi ghi dữ liệu vào cơ sở dữ liệu!${NC}"
+        rm -f "${OUTBOUND_DB}.tmp"
+    fi
     
     apply_config
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
@@ -283,8 +294,19 @@ edit_outbound() {
         read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
     fi
 
-    jq --argjson idx "$real_idx" --argjson obj "$parsed_json" '.[$idx] = $obj' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp" && mv "${OUTBOUND_DB}.tmp" "$OUTBOUND_DB"
-    echo -e "${GREEN}[THÀNH CÔNG] Cập nhật thông tin Node hoàn tất.${NC}"
+    # Bắt lỗi im lặng tương tự phần add_outbound
+    if ! echo "$parsed_json" | jq -e . >/dev/null 2>&1; then
+        echo -e "${RED}[LỖI] Dữ liệu Node trích xuất bị lỗi (thường do link thiếu tham số hoặc sai cấu trúc). Không thể cập nhật!${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+    fi
+
+    if jq --argjson idx "$real_idx" --argjson obj "$parsed_json" '.[$idx] = $obj' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp"; then
+        mv "${OUTBOUND_DB}.tmp" "$OUTBOUND_DB"
+        echo -e "${GREEN}[THÀNH CÔNG] Cập nhật thông tin Node hoàn tất.${NC}"
+    else
+        echo -e "${RED}[LỖI] Đã xảy ra lỗi khi cập nhật dữ liệu!${NC}"
+        rm -f "${OUTBOUND_DB}.tmp"
+    fi
     
     apply_config
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
