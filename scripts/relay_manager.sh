@@ -199,27 +199,37 @@ EOF
 }
 EOF
     elif [[ "$proto" == "hy2" || "$proto" == "hysteria2" ]]; then
-        local skip_cert_verify="false"
-        [ "$insecure" == "1" ] && skip_cert_verify="true"
+        local allow_insecure="false"
+        [ "$insecure" == "1" ] && allow_insecure="true"
         
         local pin_setting=""
-        [ -n "$pinSHA256" ] && pin_setting="\"pinSHA256\": \"$pinSHA256\","
+        [ -n "$pinSHA256" ] && pin_setting="\"pinnedPeerCertificateChainSha256\": [\"$pinSHA256\"],"
 
-        # Giao thức Hysteria2 trên các lõi (Xray fork/Sing-box) sử dụng cấu trúc chuyên biệt không qua streamSettings
         cat <<EOF
 {
+  "tag": "$tag",
   "protocol": "hysteria",
   "settings": {
-    "servers": [{
-      "address": "$host",
-      "port": $port,
-      "password": "$credential",
-      "sni": "$sni",
-      $pin_setting
-      "skipCertVerify": $skip_cert_verify
-    }]
+    "version": 2,
+    "address": "$host",
+    "port": $port
   },
-  "tag": "$tag"
+  "streamSettings": {
+    "network": "hysteria",
+    "security": "tls",
+    "tlsSettings": {
+      "serverName": "$sni",
+      "allowInsecure": $allow_insecure,
+      $pin_setting
+      "alpn": [
+        "h3"
+      ]
+    },
+    "hysteriaSettings": {
+      "version": 2,
+      "auth": "$credential"
+    }
+  }
 }
 EOF
     fi
