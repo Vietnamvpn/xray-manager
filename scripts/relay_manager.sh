@@ -42,7 +42,10 @@ parse_proxy_link() {
         
         # Bóc tách cấu hình vmess bằng grep/sed để không phụ thuộc vào jq
         local v_add=$(echo "$vmess_json" | grep -o '"add": *"[^"]*"' | cut -d'"' -f4)
-        local v_port=$(echo "$vmess_json" | grep -o '"port": *[0-9]*' | grep -o '[0-9]*')
+        
+        # [ĐÃ SỬA] Xử lý tương thích cả trường hợp port là string ("80") hoặc số (80)
+        local v_port=$(echo "$vmess_json" | grep -o '"port"[[:space:]]*:[[:space:]]*[^,}]*' | tr -cd '0-9')
+        
         local v_id=$(echo "$vmess_json" | grep -o '"id": *"[^"]*"' | cut -d'"' -f4)
         local v_net=$(echo "$vmess_json" | grep -o '"net": *"[^"]*"' | cut -d'"' -f4)
         local v_tls=$(echo "$vmess_json" | grep -o '"tls": *"[^"]*"' | cut -d'"' -f4)
