@@ -208,7 +208,7 @@ EOF
         # Giao thức Hysteria2 trên các lõi (Xray fork/Sing-box) sử dụng cấu trúc chuyên biệt không qua streamSettings
         cat <<EOF
 {
-  "protocol": "hysteria2",
+  "protocol": "hysteria",
   "settings": {
     "servers": [{
       "address": "$host",
