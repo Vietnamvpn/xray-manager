@@ -473,7 +473,7 @@ update_node() {
     read -p "Nhập Domain mới: " new_domain
     read -p "Nhập Port mới: " new_port
     read -p "Nhập SNI mới: " new_sni
-    read -p "$(echo -e "${CYAN}Nhập Tag mới (để trống để giữ nguyên '$old_tag'): ${NC}")" new_tag
+    read -p "$(echo -e "${CYAN}Nhập Tag mới:${NC}")" new_tag
 
     local final_domain="${new_domain:-$old_domain}"
     local final_port="${new_port:-$target_port}"
