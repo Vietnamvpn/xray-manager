@@ -23,7 +23,7 @@ parse_proxy_link() {
     local custom_tag="$2"
     
     local proto=$(echo "$link" | grep -o '^[a-zA-Z0-9]*')
-    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" && "$proto" != "hy2" && "$proto" != "hysteria2" ]]; then
+    if [[ "$proto" != "vless" && "$proto" != "trojan" && "$proto" != "vmess" ]]; then
         echo "ERR_PROTO"
         return 1
     fi
@@ -93,7 +93,7 @@ EOF
     fi
 
     # ---------------------------------------------------------
-    # 2. Xử lý chuẩn URI cho vless, trojan, hy2, hysteria2
+    # 2. Xử lý chuẩn URI cho vless, trojan
     # ---------------------------------------------------------
     local user_info_host_port=$(echo "$link" | sed -e 's/^.*:\/\///' -e 's/\?.*$//' -e 's/#.*$//')
     local credential=$(echo "$user_info_host_port" | cut -d'@' -f1)
@@ -132,10 +132,6 @@ EOF
     local pbk=$(echo "$query_string" | grep -o 'pbk=[^&]*' | cut -d= -f2)
     local sid=$(echo "$query_string" | grep -o 'sid=[^&]*' | cut -d= -f2)
     local spx=$(echo "$query_string" | grep -o 'spx=[^&]*' | cut -d= -f2 | sed 's/%2F/\//g')
-    
-    # Các tham số dành riêng cho hy2 / hysteria2
-    local insecure=$(echo "$query_string" | grep -o 'insecure=[^&]*' | cut -d= -f2)
-    local pinSHA256=$(echo "$query_string" | grep -o 'pinSHA256=[^&]*' | cut -d= -f2)
 
     # Khởi tạo streamSettings cơ bản động (dùng cho vless và trojan)
     local streamSettings="{\"network\": \"$net_type\""
@@ -196,40 +192,6 @@ EOF
   },
   "streamSettings": $streamSettings,
   "tag": "$tag"
-}
-EOF
-    elif [[ "$proto" == "hy2" || "$proto" == "hysteria2" ]]; then
-        local allow_insecure="false"
-        [ "$insecure" == "1" ] && allow_insecure="true"
-        
-        local pin_setting=""
-        [ -n "$pinSHA256" ] && pin_setting="\"pinnedPeerCertificateChainSha256\": [\"$pinSHA256\"],"
-
-        cat <<EOF
-{
-  "tag": "$tag",
-  "protocol": "hysteria",
-  "settings": {
-    "version": 2,
-    "address": "$host",
-    "port": $port
-  },
-  "streamSettings": {
-    "network": "hysteria",
-    "security": "tls",
-    "tlsSettings": {
-      "serverName": "$sni",
-      "allowInsecure": $allow_insecure,
-      $pin_setting
-      "alpn": [
-        "h3"
-      ]
-    },
-    "hysteriaSettings": {
-      "version": 2,
-      "auth": "$credential"
-    }
-  }
 }
 EOF
     fi
