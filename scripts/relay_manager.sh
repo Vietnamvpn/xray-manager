@@ -210,9 +210,13 @@ EOF
   "tag": "$tag",
   "protocol": "hysteria",
   "settings": {
-    "version": 2,
-    "address": "$host",
-    "port": $port
+    "servers": [
+      {
+        "address": "$host",
+        "port": $port,
+        "auth": "$credential"
+      }
+    ]
   },
   "streamSettings": {
     "network": "hysteria",
@@ -224,10 +228,6 @@ EOF
       "alpn": [
         "h3"
       ]
-    },
-    "hysteriaSettings": {
-      "version": 2,
-      "auth": "$credential"
     }
   }
 }
