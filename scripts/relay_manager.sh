@@ -212,20 +212,20 @@ list_outbounds() {
     fi
     echo -e "${CYAN}STT | Nhãn (Tag) | Giao thức | Máy chủ đích${NC}"
     echo -e "------------------------------------------------"
-    jq -r 'keys[] as $i | "\($i+1)) [\(.[$i].tag)] | Giao thức: \(.[$i].protocol) -> \(.[$i].settings.vnext[0].address // .[$i].settings.servers[0].address):\(.[$i].settings.vnext[0].port // .[$i].settings.servers[0].port)"' "$OUTBOUND_DB"
+    jq -r --arg Y "$YELLOW" --arg G "$GREEN" --arg C "$CYAN" --arg N "$NC" 'keys[] as $i | "\($Y)\($i+1))\($N) [\($G)\(.[$i].tag)\($N)] | Giao thức: \($C)\(.[$i].protocol)\($N) -> \(.[$i].settings.vnext[0].address // .[$i].settings.servers[0].address):\(.[$i].settings.vnext[0].port // .[$i].settings.servers[0].port)"' "$OUTBOUND_DB"
     return 0
 }
 
 add_outbound() {
     clear
     echo -e "${BLUE}=== THÊM NODE TRUNG GIAN (OUTBOUND RELAY) ===${NC}"
-    echo -e "Hỗ trợ các liên kết chuẩn: vless://, trojan:// hoặc vmess://"
+    echo -e "Hỗ trợ các liên kết chuẩn: ${GREEN}vless://${NC}, ${GREEN}trojan://${NC} hoặc ${GREEN}vmess://${NC}"
     echo -e "Nhập ${RED}0${NC} để quay lại."
     echo ""
-    read -p "Nhập liên kết Node của bạn: " proxy_link
+    read -p "$(echo -e "${CYAN}Nhập liên kết Node của bạn: ${NC}")" proxy_link
     [ "$proxy_link" == "0" ] && return
 
-    read -p "Đặt tên nhãn gợi nhớ (Tag) [Bỏ trống tự nhận diện]: " custom_tag
+    read -p "$(echo -e "${CYAN}Đặt tên nhãn gợi nhớ (Tag) [Bỏ trống tự nhận diện]: ${NC}")" custom_tag
     [ "$custom_tag" == "0" ] && return
 
     echo -e "\n${YELLOW}Đang kiểm tra dữ liệu cấu hình liên kết...${NC}"
@@ -233,23 +233,23 @@ add_outbound() {
     
     if [[ "$parsed_json" == "ERR_PROTO" ]]; then
         echo -e "${RED}[LỖI] Hệ thống hiện tại chỉ hỗ trợ xử lý tự động liên kết định dạng VLESS, TROJAN hoặc VMESS!${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để thực hiện lại...${NC}")" && return
     elif [[ "$parsed_json" == "ERR_FORMAT" ]]; then
         echo -e "${RED}[LỖI] Cú pháp chuỗi liên kết không đúng định dạng. Vui lòng kiểm tra lại IP/Cổng/UUID.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để thực hiện lại...${NC}")" && return
     fi
 
     # Ngăn lỗi im lặng: Kiểm tra dữ liệu JSON có hợp lệ không trước khi lưu (đặc biệt cho VMESS)
     if ! echo "$parsed_json" | jq -e . >/dev/null 2>&1; then
         echo -e "${RED}[LỖI] Dữ liệu Node trích xuất bị lỗi (thường do link thiếu tham số hoặc sai cấu trúc). Không thể thêm!${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để thực hiện lại...${NC}")" && return
     fi
 
     local check_tag=$(echo "$parsed_json" | jq -r '.tag')
     local duplicate=$(jq --arg t "$check_tag" '.[] | select(.tag == $t)' "$OUTBOUND_DB")
     if [ ! -z "$duplicate" ]; then
         echo -e "${RED}[LỖI] Tên nhãn (Tag) '$check_tag' đã tồn tại trên một Node khác trong cơ sở dữ liệu.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để thực hiện lại...${NC}")" && return
     fi
 
     if jq --argjson new_node "$parsed_json" '. += [$new_node]' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp"; then
@@ -261,32 +261,32 @@ add_outbound() {
     fi
     
     apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")"
 }
 
 edit_outbound() {
     clear
     echo -e "${BLUE}=== CHỈNH SỬA NODE TRUNG GIAN ===${NC}"
     if ! list_outbounds; then
-        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")" && return
     fi
     echo ""
-    read -p "Chọn số thứ tự Node cần sửa (Hoặc gõ 0 để quay lại): " index
+    read -p "$(echo -e "${CYAN}Chọn số thứ tự Node cần sửa (Hoặc gõ 0 để quay lại): ${NC}")" index
     [[ "$index" == "0" || -z "$index" ]] && return
     
     local real_idx=$((index - 1))
     local exist_check=$(jq --argjson idx "$real_idx" '.[$idx]' "$OUTBOUND_DB")
     if [ "$exist_check" == "null" ]; then
         echo -e "${RED}[LỖI] Số thứ tự lựa chọn không hợp lệ.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để thực hiện lại...${NC}")" && return
     fi
 
-    read -p "Nhập liên kết cấu hình Node mới thay thế: " new_link
+    read -p "$(echo -e "${CYAN}Nhập liên kết cấu hình Node mới thay thế: ${NC}")" new_link
     [ "$new_link" == "0" ] && return
     
     if [ -z "$new_link" ]; then
         echo -e "${RED}[LỖI] Liên kết proxy không được phép để trống.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     local current_tag=$(jq -r --argjson idx "$real_idx" '.[$idx].tag' "$OUTBOUND_DB")
@@ -294,13 +294,13 @@ edit_outbound() {
     
     if [[ "$parsed_json" == "ERR_PROTO" || "$parsed_json" == "ERR_FORMAT" ]]; then
         echo -e "${RED}[LỖI] Cấu trúc đường liên kết mới không hợp lệ.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     # Bắt lỗi im lặng tương tự phần add_outbound
     if ! echo "$parsed_json" | jq -e . >/dev/null 2>&1; then
         echo -e "${RED}[LỖI] Dữ liệu Node trích xuất bị lỗi (thường do link thiếu tham số hoặc sai cấu trúc). Không thể cập nhật!${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ để thực hiện lại..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để thực hiện lại...${NC}")" && return
     fi
 
     if jq --argjson idx "$real_idx" --argjson obj "$parsed_json" '.[$idx] = $obj' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp"; then
@@ -312,17 +312,17 @@ edit_outbound() {
     fi
     
     apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")"
 }
 
 delete_outbound() {
     clear
     echo -e "${BLUE}=== XÓA BỎ NODE TRUNG GIAN ===${NC}"
     if ! list_outbounds; then
-        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")" && return
     fi
     echo ""
-    read -p "Chọn số thứ tự Node muốn xóa (Hoặc gõ 0 để quay lại): " index
+    read -p "$(echo -e "${CYAN}Chọn số thứ tự Node muốn xóa (Hoặc gõ 0 để quay lại): ${NC}")" index
     [[ "$index" == "0" || -z "$index" ]] && return
 
     local real_idx=$((index - 1))
@@ -330,7 +330,7 @@ delete_outbound() {
     
     if [ -z "$target_tag" || "$target_tag" == "null" ]; then
         echo -e "${RED}[LỖI] Lựa chọn không tồn tại.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     jq --argjson idx "$real_idx" 'del(.[$idx])' "$OUTBOUND_DB" > "${OUTBOUND_DB}.tmp" && mv "${OUTBOUND_DB}.tmp" "$OUTBOUND_DB"
@@ -340,7 +340,7 @@ delete_outbound() {
     jq --arg t "$target_tag" 'del(.[] | select(.outboundTag == $t))' "$ROUTING_DB" > "${ROUTING_DB}.tmp" && mv "${ROUTING_DB}.tmp" "$ROUTING_DB"
     
     apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")"
 }
 
 menu_outbounds() {
@@ -349,13 +349,13 @@ menu_outbounds() {
         echo -e "${BLUE}=======================================${NC}"
         echo -e "${YELLOW}      MỤC CHỈNH SỬA NODE OUTBOUNDS     ${NC}"
         echo -e "${BLUE}=======================================${NC}"
-        echo -e "1. Thêm Node trung gian mới"
-        echo -e "2. Sửa thông tin Node sẵn có"
-        echo -e "3. Xóa bỏ Node trung gian"
-        echo -e "0. Quay lại Menu chính"
+        echo -e "${GREEN}1.${NC} Thêm Node trung gian mới"
+        echo -e "${GREEN}2.${NC} Sửa thông tin Node sẵn có"
+        echo -e "${GREEN}3.${NC} Xóa bỏ Node trung gian"
+        echo -e "${RED}0.${NC} Quay lại Menu chính"
         echo -e "${BLUE}=======================================${NC}"
         echo ""
-        read -p "Nhập thao tác: " opt
+        read -p "$(echo -e "${CYAN}Nhập thao tác: ${NC}")" opt
         case $opt in
             1) add_outbound ;;
             2) edit_outbound ;;
@@ -378,33 +378,33 @@ list_routings() {
     fi
     echo -e "${CYAN}STT | Nhóm cổng nhận (Inbound) ---> Cổng xuất trung gian (Outbound)${NC}"
     echo -e "------------------------------------------------------------------"
-    jq -r 'keys[] as $i | "\($i+1)) Inbound: [\(.[$i].inboundTag | join(","))] =======> Đi qua Outbound: [\(.[$i].outboundTag)]"' "$ROUTING_DB"
+    jq -r --arg Y "$YELLOW" --arg G "$GREEN" --arg N "$NC" 'keys[] as $i | "\($Y)\($i+1))\($N) Inbound: [\($G)\(.[$i].inboundTag | join(","))\($N)] =======> Đi qua Outbound: [\($G)\(.[$i].outboundTag)\($N)]"' "$ROUTING_DB"
     return 0
 }
 
 add_routing() {
     clear
     echo -e "${BLUE}=== TẠO QUY TẮC ĐỊNH TUYẾN BẮC CẦU ===${NC}"
-    echo -e "Nhập 0 ở bất kỳ trường nào để hủy bỏ thao tác."
+    echo -e "Nhập ${RED}0${NC} ở bất kỳ trường nào để hủy bỏ thao tác."
     echo ""
     
-    read -p "Nhập chính xác tên nhãn nhận khách (Inbound Tag ví dụ: inbound-can-relay): " in_tag
+    read -p "$(echo -e "${CYAN}Nhập chính xác tên nhãn nhận khách (Inbound Tag ví dụ: inbound-can-relay): ${NC}")" in_tag
     [[ "$in_tag" == "0" || -z "$in_tag" ]] && return
 
-    echo -e "\n--- Danh sách các cổng ra trung gian hợp lệ đang chạy ---"
+    echo -e "\n${YELLOW}--- Danh sách các cổng ra trung gian hợp lệ đang chạy ---${NC}"
     if ! list_outbounds; then
         echo -e "${RED}[LỖI] Vui lòng thêm ít nhất một cấu hình Node Outbound trước khi cài đặt định tuyến.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
     echo ""
-    read -p "Nhập chính xác tên nhãn đích ra (Outbound Tag tương ứng): " out_tag
+    read -p "$(echo -e "${CYAN}Nhập chính xác tên nhãn đích ra (Outbound Tag tương ứng): ${NC}")" out_tag
     [[ "$out_tag" == "0" || -z "$out_tag" ]] && return
 
     # Kiểm tra tính tồn tại thực tế của Outbound Tag vừa gõ
     local check_out=$(jq --arg t "$out_tag" '.[] | select(.tag == $t)' "$OUTBOUND_DB")
     if [ -z "$check_out" ]; then
         echo -e "${RED}[LỖI] Tên nhãn Outbound không tồn tại trong hệ thống lưu trữ. Không thể gán quy tắc.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     local rule_json=$(cat <<EOF
@@ -420,40 +420,40 @@ EOF
     echo -e "${GREEN}[THÀNH CÔNG] Đã lưu liên kết định tuyến vào hệ thống.${NC}"
     
     apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")"
 }
 
 edit_routing() {
     clear
     echo -e "${BLUE}=== SỬA ĐỔI QUY TẮC ĐỊNH TUYẾN ===${NC}"
     if ! list_routings; then
-        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")" && return
     fi
     echo ""
-    read -p "Chọn số thứ tự dòng định tuyến cần sửa (Nhập 0 để dừng): " index
+    read -p "$(echo -e "${CYAN}Chọn số thứ tự dòng định tuyến cần sửa (Nhập 0 để dừng): ${NC}")" index
     [[ "$index" == "0" || -z "$index" ]] && return
 
     local real_idx=$((index - 1))
     local exist_check=$(jq --argjson idx "$real_idx" '.[$idx]' "$ROUTING_DB")
     if [ "$exist_check" == "null" ]; then
         echo -e "${RED}[LỖI] Số thứ tự lựa chọn không hợp lệ.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
-    read -p "Nhập lại tên nhãn nhận khách (Inbound Tag mới): " in_tag
+    read -p "$(echo -e "${CYAN}Nhập lại tên nhãn nhận khách (Inbound Tag mới): ${NC}")" in_tag
     [ "$in_tag" == "0" ] && return
-    read -p "Nhập lại tên nhãn đích ra (Outbound Tag mới): " out_tag
+    read -p "$(echo -e "${CYAN}Nhập lại tên nhãn đích ra (Outbound Tag mới): ${NC}")" out_tag
     [ "$out_tag" == "0" ] && return
 
     if [[ -z "$in_tag" || -z "$out_tag" ]]; then
         echo -e "${RED}[LỖI] Các trường dữ liệu định tuyến không được để trống.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     local check_out=$(jq --arg t "$out_tag" '.[] | select(.tag == $t)' "$OUTBOUND_DB")
     if [ -z "$check_out" ]; then
         echo -e "${RED}[LỖI] Nhãn Outbound '$out_tag' không hợp lệ.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     local rule_json=$(cat <<EOF
@@ -469,31 +469,31 @@ EOF
     echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật bảng chuyển tiếp dữ liệu.${NC}"
     
     apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")"
 }
 
 delete_routing() {
     clear
     echo -e "${BLUE}=== XÓA QUY TẮC ĐỊNH TUYẾN ===${NC}"
     if ! list_routings; then
-        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")" && return
     fi
     echo ""
-    read -p "Chọn số thứ tự dòng định tuyến muốn xóa (Nhập 0 để dừng): " index
+    read -p "$(echo -e "${CYAN}Chọn số thứ tự dòng định tuyến muốn xóa (Nhập 0 để dừng): ${NC}")" index
     [[ "$index" == "0" || -z "$index" ]] && return
 
     local real_idx=$((index - 1))
     local exist_check=$(jq --argjson idx "$real_idx" '.[$idx]' "$ROUTING_DB")
     if [ "$exist_check" == "null" ]; then
         echo -e "${RED}[LỖI] Chỉ mục chọn nằm ngoài phạm vi danh sách.${NC}"
-        read -n 1 -s -r -p "Bấm phím bất kỳ..." && return
+        read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ...${NC}")" && return
     fi
 
     jq --argjson idx "$real_idx" 'del(.[$idx])' "$ROUTING_DB" > "${ROUTING_DB}.tmp" && mv "${ROUTING_DB}.tmp" "$ROUTING_DB"
     echo -e "${GREEN}[THÀNH CÔNG] Đã loại bỏ quy tắc định tuyến khỏi hàng đợi.${NC}"
     
     apply_config
-    read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+    read -n 1 -s -r -p "$(echo -e "${YELLOW}Bấm phím bất kỳ để tiếp tục...${NC}")"
 }
 
 menu_routing() {
@@ -502,13 +502,13 @@ menu_routing() {
         echo -e "${BLUE}=======================================${NC}"
         echo -e "${YELLOW}      MỤC CHỈNH SỬA ROUTING RULES      ${NC}"
         echo -e "${BLUE}=======================================${NC}"
-        echo -e "1. Thêm quy tắc định tuyến mới"
-        echo -e "2. Sửa quy tắc định tuyến sẵn có"
-        echo -e "3. Xóa bỏ quy tắc định tuyến"
-        echo -e "0. Quay lại Menu chính"
+        echo -e "${GREEN}1.${NC} Thêm quy tắc định tuyến mới"
+        echo -e "${GREEN}2.${NC} Sửa quy tắc định tuyến sẵn có"
+        echo -e "${GREEN}3.${NC} Xóa bỏ quy tắc định tuyến"
+        echo -e "${RED}0.${NC} Quay lại Menu chính"
         echo -e "${BLUE}=======================================${NC}"
         echo ""
-        read -p "Nhập thao tác: " opt
+        read -p "$(echo -e "${CYAN}Nhập thao tác: ${NC}")" opt
         case $opt in
             1) add_routing ;;
             2) edit_routing ;;
@@ -527,12 +527,12 @@ while true; do
     echo -e "${BLUE}=======================================${NC}"
     echo -e "${CYAN}    HỆ THỐNG QUẢN LÝ ĐỊNH TUYẾN ĐA NODE   ${NC}"
     echo -e "${BLUE}=======================================${NC}"
-    echo -e "1. Cài đặt Outbounds Relay"
-    echo -e "2. Cài đặt Routing Rules"
-    echo -e "0. Thoát khỏi trình quản lý"
+    echo -e "${GREEN}1.${NC} Cài đặt Outbounds Relay"
+    echo -e "${GREEN}2.${NC} Cài đặt Routing Rules"
+    echo -e "${RED}0.${NC} Thoát khỏi trình quản lý"
     echo -e "${BLUE}=======================================${NC}"
     echo ""
-    read -p "Vui lòng nhập số lựa chọn của bạn: " main_opt
+    read -p "$(echo -e "${CYAN}Vui lòng nhập số lựa chọn của bạn: ${NC}")" main_opt
     case $main_opt in
         1) menu_outbounds ;;
         2) menu_routing ;;
