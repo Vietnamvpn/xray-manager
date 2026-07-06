@@ -473,10 +473,12 @@ update_node() {
     read -p "Nhập Domain mới: " new_domain
     read -p "Nhập Port mới: " new_port
     read -p "Nhập SNI mới: " new_sni
+    read -p "$(echo -e "${CYAN}Nhập Tag mới (để trống để giữ nguyên '$old_tag'): ${NC}")" new_tag
 
     local final_domain="${new_domain:-$old_domain}"
     local final_port="${new_port:-$target_port}"
     local final_sni="${new_sni:-$old_sni}"
+    local final_tag="${new_tag:-$old_tag}"
 
     # Kiểm tra điều kiện bắt buộc đối với WS
     if [ "$is_ws" == "true" ] && [ "$final_domain" != "$final_sni" ]; then
@@ -499,11 +501,12 @@ update_node() {
     if jq --arg p "$target_port" \
           --arg np "$final_port" \
           --arg s "$final_sni" \
-          --arg d "$final_domain" '
+          --arg d "$final_domain" \
+          --arg t "$final_tag" '
         map(if .port|tostring == $p then
             (if has("domain") then .domain = $d else . end) |
             .port = ($np|tonumber) |
-            .tag = ((.protocol // "unknown") + "-" + $np) |
+            .tag = $t |
             (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
             (if .streamSettings.wsSettings then .streamSettings.wsSettings.headers.Host = $s else . end) |
             (if .streamSettings.realitySettings then 
