@@ -260,7 +260,9 @@ add_node() {
             fi
         fi
 
-        local tag="${protocol}-${port}"
+        # Thay thế dòng: local tag="${protocol}-${port}" bằng đoạn này:
+        read -p "$(echo -e "${CYAN}Nhập tên Tag cho node (để trống sẽ là ${protocol}-${port}): ${NC}")" input_tag
+        local tag="${input_tag:-${protocol}-${port}}"
 
 
     # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
