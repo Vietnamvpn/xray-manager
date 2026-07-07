@@ -461,7 +461,7 @@ update_node() {
 
     # Lấy thông tin hiện tại
     local current_node=$(jq -c --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB")
-    local old_domain=$(echo "$current_node" | jq -r '.domain')
+    local old_domain=$(echo "$current_node" | jq -r '.domain // .streamSettings.wsSettings.headers.Host // .streamSettings.tlsSettings.serverName // "N/A"')
     local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
     local is_ws=$(echo "$current_node" | jq -e '.streamSettings.wsSettings != null' >/dev/null 2>&1 && echo "true" || echo "false")
     local old_tag=$(echo "$current_node" | jq -r '.tag')
