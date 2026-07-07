@@ -136,33 +136,52 @@ toggle_bbr() {
     echo -e "2. Tắt BBR"
     read -p "Chọn: " sub_choice
     
-    echo -e "\n${YELLOW}Đang áp dụng cấu hình kernel...${NC}"
+    # Lấy thuật toán kiểm soát nghẽn hiện tại của hệ thống
+    local current_cc=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null)
     
     case $sub_choice in
         1)
-            # Dọn dẹp cấu hình cũ trước khi thêm để tránh trùng lặp
-            sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
-            sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
-            
-            # Ghi cấu hình mới
-            echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-            echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-            
-            # Áp dụng
-            sysctl -p >/dev/null 2>&1
-            status_check $? "Bật BBR"
+            if [ "$current_cc" == "bbr" ]; then
+                echo -e "\n${YELLOW}[THÔNG BÁO] BBR đã được bật từ trước đó rồi, không cần bật lại!${NC}"
+            else
+                echo -e "\n${YELLOW}Đang áp dụng cấu hình kernel...${NC}"
+                # Dọn dẹp cấu hình cũ trước khi thêm để tránh trùng lặp
+                sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
+                sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
+                
+                # Ghi cấu hình mới
+                echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+                echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+                
+                # Áp dụng
+                sysctl -p >/dev/null 2>&1
+                local exit_code=$?
+                if [ $exit_code -ne 0 ]; then
+                    echo -e "${RED}[LỖI] Hệ thống không thể áp dụng cấu hình sysctl mới. Vui lòng kiểm tra quyền root!${NC}"
+                fi
+                status_check $exit_code "Bật BBR"
+            fi
             ;;
         2)
-            # Dọn dẹp cấu hình
-            sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
-            sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
-            
-            # Áp dụng
-            sysctl -p >/dev/null 2>&1
-            status_check $? "Tắt BBR"
+            if [ "$current_cc" != "bbr" ]; then
+                echo -e "\n${YELLOW}[THÔNG BÁO] BBR hiện đang ở trạng thái tắt (Hệ thống đang dùng: $current_cc).${NC}"
+            else
+                echo -e "\n${YELLOW}Đang áp dụng cấu hình kernel...${NC}"
+                # Dọn dẹp cấu hình
+                sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
+                sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
+                
+                # Áp dụng
+                sysctl -p >/dev/null 2>&1
+                local exit_code=$?
+                if [ $exit_code -ne 0 ]; then
+                    echo -e "${RED}[LỖI] Không thể khôi phục cấu hình sysctl về mặc định.${NC}"
+                fi
+                status_check $exit_code "Tắt BBR"
+            fi
             ;;
         *)
-            echo -e "${RED}Lựa chọn không hợp lệ.${NC}"
+            echo -e "\n${RED}Lựa chọn không hợp lệ.${NC}"
             ;;
     esac
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
