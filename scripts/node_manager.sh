@@ -464,11 +464,12 @@ update_node() {
     local old_domain=$(echo "$current_node" | jq -r '.domain')
     local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
     local is_ws=$(echo "$current_node" | jq -e '.streamSettings.wsSettings != null' >/dev/null 2>&1 && echo "true" || echo "false")
+    local old_tag=$(echo "$current_node" | jq -r '.tag')
 
     echo -e "${BLUE}Đang cập nhật Node Port:${NC}${YELLOW} $target_port${NC}"
     echo -e "Domain hiện tại: ${YELLOW}$old_domain${NC}"
     echo -e "SNI hiện tại: ${YELLOW}$old_sni${NC}"
-    echo -e "Tag hiện tại: ${YELLOW}$(echo "$current_node" | jq -r '.tag')${NC}"
+    echo -e "Tag hiện tại: ${YELLOW}$old_tag${NC}"
     echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
 
     read -p "Nhập Domain mới: " new_domain
@@ -533,7 +534,15 @@ delete_node() {
     echo -e "${RED}======================== GỠ BỎ CẤU HÌNH NODE =========================${NC}"
     echo -e "${BLUE}                           --------------                            ${NC}"
     echo -e "${YELLOW}Lưu ý: Nếu để trống và nhấn Enter, TOÀN BỘ danh sách Node sẽ bị xóa!${NC}"
+    echo -e "${YELLOW}(Nhập 0 và nhấn Enter nếu muốn hủy bỏ và quay lại)${NC}"
     read -p "Nhập Port của Node muốn xóa: " target_port
+    
+    # TRƯỜNG HỢP KHÔNG MUỐN XÓA: Nhập 0 để thoát
+    if [ "$target_port" == "0" ]; then
+        echo -e "${YELLOW}Đã hủy lệnh xóa. Đang quay lại...${NC}"
+        read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
+        return
+    fi
     
     # TRƯỜNG HỢP 1: Để trống -> Xóa tất cả
     if [ -z "$target_port" ]; then
@@ -549,6 +558,15 @@ delete_node() {
     
     # TRƯỜNG HỢP 2: Có nhập Port -> Xóa Node cụ thể
     else
+        # Kiểm tra Port nhập vào có tồn tại trong Database hay không
+        local node_exists=$(jq -e --arg p "$target_port" '.[] | select(.port|tostring == $p)' "$NODE_DB" >/dev/null 2>&1 && echo "yes" || echo "no")
+        
+        if [ "$node_exists" == "no" ]; then
+            echo -e "${RED}[LỖI] Không tìm thấy Node nào có Port $target_port trong hệ thống!${NC}"
+            read -n 1 -s -r -p "Bấm phím bất kỳ để quay lại..."
+            return
+        fi
+
         # Sử dụng --argjson để jq hiểu $target_port là số (number)
         jq --argjson p "$target_port" 'del(.[] | select(.port == $p))' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"
         echo -e "${GREEN}Đã gỡ bỏ cấu hình Node có Port $target_port khỏi Database.${NC}"
