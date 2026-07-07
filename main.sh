@@ -231,7 +231,10 @@ setup_swap() {
 # 10. Trạng thái VPS
 check_vps() {
     clear
-    echo -e "${BLUE}TRẠNG THÁI VPS HIỆN TẠI:${NC}"
+    echo -e "${BLUE}========TRẠNG THÁI VPS HIỆN TẠI:========${NC}"
+    echo -e "----------------------------------------"
+    uname -a
+    echo -e ""
     free -h
     df -h
     uptime
