@@ -235,6 +235,7 @@ check_vps() {
     free -h
     df -h
     uptime
+    echo -e ""
     read -n 1 -s -r -p "Bấm phím bất kỳ để tiếp tục..."
 }
 
