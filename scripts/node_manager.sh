@@ -11,6 +11,11 @@ NC='\033[0m'
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALL_DIR="/etc/xray-manager"
 
+# 1. ĐỊNH NGHĨA ĐƯỜNG DẪN TRƯỚC ĐỂ TRÁNH LỖI BIẾN TRỐNG KHI NẠP UTILS
+NODE_DB="${NODE_DB:-$INSTALL_DIR/data/nodes.json}"
+XRAY_CONFIG_DIR="${XRAY_CONFIG_DIR:-/usr/local/etc/xray}"
+SCRIPTS_DIR="${SCRIPTS_DIR:-$INSTALL_DIR/scripts}"
+
 if [ -f "${BASE_DIR}/config.conf" ]; then
     source "${BASE_DIR}/config.conf"
 fi
@@ -21,66 +26,21 @@ else
     TEMPLATES_DIR="${BASE_DIR}/templates"
 fi
 
-NODE_DB="${NODE_DB:-$INSTALL_DIR/data/nodes.json}"
-XRAY_CONFIG_DIR="${XRAY_CONFIG_DIR:-/usr/local/etc/xray}"
-SCRIPTS_DIR="${SCRIPTS_DIR:-$INSTALL_DIR/scripts}"
+# 2. NẠP THƯ VIỆN UTILS.SH (Đã có đầy đủ biến SCRIPTS_DIR để tìm file)
+if [ -f "${SCRIPTS_DIR}/utils.sh" ]; then
+    source "${SCRIPTS_DIR}/utils.sh"
+elif [ -f "${BASE_DIR}/scripts/utils.sh" ]; then
+    source "${BASE_DIR}/scripts/utils.sh"
+else
+    echo -e "${RED}[LỖI] Không thể tìm thấy thư viện dùng chung utils.sh!${NC}"
+    exit 1
+fi
 
 if [ ! -f "$NODE_DB" ] || [ ! -s "$NODE_DB" ] || ! jq . "$NODE_DB" >/dev/null 2>&1; then
     mkdir -p "$(dirname "$NODE_DB")"
     echo "[]" > "$NODE_DB"
 fi
 
-# =================================================================
-# 1. HÀM APPLY CONFIG: HIỂN THỊ TRẠNG THÁI XRAY RÕ RÀNG
-# =================================================================
-apply_config() {
-    local active_config="${XRAY_CONFIG_DIR}/config.json"
-    local base_tpl="${TEMPLATES_DIR}/base.json"
-    
-    if [ ! -f "$base_tpl" ]; then
-        echo -e "${RED}[LỖI] Không tìm thấy file mẫu gốc tại: $base_tpl${NC}"
-        return 1
-    fi
-
-    if ! jq --slurpfile nodes "$NODE_DB" '.inbounds += $nodes[0]' "$base_tpl" > "${active_config}.tmp" 2>/dev/null; then
-        echo -e "${RED}[LỖI] Lỗi cú pháp JSON khi trộn dữ liệu vào cấu hình chính.${NC}"
-        rm -f "${active_config}.tmp"
-        return 1
-    fi
-
-    mv "${active_config}.tmp" "$active_config"
-    echo -e "${YELLOW}Đang khởi động lại dịch vụ Xray Core...${NC}"
-    systemctl restart xray 2>/dev/null
-    
-    # KIỂM TRA TRẠNG THÁI SỐNG/CHẾT THỰC TẾ CỦA TIẾN TRÌNH VỚI VÒNG LẶP KIỂM TRA
-    local retry=0
-    local max_retry=5
-    local success=false
-
-    while [ $retry -lt $max_retry ]; do
-        sleep 1
-        if systemctl is-active --quiet xray; then
-            success=true
-            break
-        fi
-        ((retry++))
-        echo -ne "${YELLOW}Đang đợi dịch vụ ổn định... (${retry}/${max_retry})${NC}\r"
-    done
-
-    if [ "$success" = true ]; then
-        echo -e ""
-        echo -e "${GREEN}[THÀNH CÔNG] XRAY ĐANG CHẠY BÌNH THƯỜNG!${NC}"
-        echo -e ""
-        return 0
-    else
-        echo -e ""
-        echo -e "${RED}[THẤT BẠI] XRAY ĐÃ BỊ CRASH HOẶC TỪ CHỐI CHẠY!${NC}"
-        echo -e "${YELLOW}Nguyên nhân có thể do file mẫu sai cú pháp hoặc trùng Port hệ thống.${NC}"
-        echo -e "${YELLOW}Dùng lệnh sau để xem lỗi chi tiết: ${NC}journalctl -u xray --no-pager -n 20"
-        echo -e ""
-        return 1
-    fi
-}
 
 show_node_menu() {
     clear
