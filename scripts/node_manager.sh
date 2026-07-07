@@ -478,7 +478,7 @@ update_node() {
              else . end)
         else . end)
     ' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"; then
-        echo -e "${GREEN}[THÀNH CÔNG] Đã cập nhật Node $target_port -> $final_port${NC}"
+        echo -e "${GREEN}Đã cập nhật Node $target_port -> $final_port${NC}"
     else
         echo -e "${RED}[LỖI] Cập nhật file JSON thất bại.${NC}"
         rm -f "${NODE_DB}.tmp"
