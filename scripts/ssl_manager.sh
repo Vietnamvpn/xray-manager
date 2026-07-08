@@ -59,13 +59,13 @@ issue_wildcard_cf() {
     if [ $? -eq 0 ]; then
         mkdir -p "$CERT_DIR"
         
-        # Cài đặt file vào đường dẫn cố định
+        # Cài đặt file theo tên miền để không ghi đè file server.crt/server.key hiện tại
         "$HOME/.acme.sh/acme.sh" --install-cert -d "$domain" \
-            --key-file       "$KEY_FILE" \
-            --fullchain-file "$CERT_FILE" \
+            --key-file       "${CERT_DIR}/${domain}.key" \
+            --fullchain-file "${CERT_DIR}/${domain}.crt" \
             --reloadcmd      "systemctl restart xray"
             
-        log_info "Cấp phát SSL thành công. File đã ghi đè tại: $CERT_DIR"
+        log_info "Cấp phát SSL thành công. File được lưu tại: ${CERT_DIR}/${domain}.crt và ${CERT_DIR}/${domain}.key"
     else
         log_error "Cấp phát SSL thất bại. Kiểm tra lại Global API Key và tên miền."
     fi
