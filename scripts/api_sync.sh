@@ -71,13 +71,13 @@ EOF
 push_admin_nodes() {
     if [ -n "$API_DOMAIN" ] && [ -n "$API_TOKEN" ] && [ -n "$API_PORT" ]; then
         # 1. Lấy IP Public của VPS (Để kiểm tra kết nối từ ngoài vào)
-        local pub_ip=$(curl -s https://ifconfig.me)
+        local pub_ip=$(curl -s -m 5 https://ifconfig.me)
         
         # Lấy tên quốc gia dựa trên IP Public (Xóa khoảng trắng nếu có)
-        local country=$(curl -s "http://ip-api.com/line/$pub_ip?fields=country" | sed 's/ //g')
+        local country=$(curl -s -m 5 "http://ip-api.com/line/$pub_ip?fields=country" | sed 's/ //g')
         [ -z "$country" ] && country="Unknown"
         # Lấy mã quốc gia từ API gốc để chuyển thành cờ emoji
-        local c_code=$(curl -s "http://ip-api.com/line/$pub_ip?fields=countryCode")
+        local c_code=$(curl -s -m 5 "http://ip-api.com/line/$pub_ip?fields=countryCode")
 
         # 2. Khởi tạo cấu trúc dữ liệu trạng thái trống
         local status_json="{}"
@@ -94,8 +94,8 @@ push_admin_nodes() {
                 nc_flags="-zu"
             fi
 
-            # Thực hiện kiểm tra cổng với timeout 1 giây
-            if timeout 1 nc $nc_flags -w 1 "$pub_ip" "$p" >/dev/null 2>&1; then
+            # Thực hiện kiểm tra cổng với timeout 1 giây (Thêm < /dev/null để chặn nc nuốt luồng stdin)
+            if timeout 1 nc $nc_flags -w 1 "$pub_ip" "$p" < /dev/null >/dev/null 2>&1; then
                 status_json=$(echo "$status_json" | jq --arg p "$p" '. + {($p): "online"}')
             else
                 # Tránh ghi đè trạng thái offline nếu port đó đã được xác nhận online trước đó
@@ -103,13 +103,13 @@ push_admin_nodes() {
             fi
         done < <(jq -r '.[] | select(.port != null) | "\(.port) \(.protocol)"' "$NODE_DB" | sort -u)
 
-        # 4. Gắn status vào JSON, lọc client "admin" và kiểm tra tag bằng Regex
+        # 4. Gắn status vào JSON, lọc client "admin" và kiểm tra tag bằng Regex (Thêm kiểm tra kiểu dữ liệu string)
         local admin_nodes=$(jq -c --argjson statuses "$status_json" --arg country "$country" --arg cc "$c_code" '
             map(.settings.clients |= map(select(.email == "admin"))) | 
             map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")}) |
             to_entries | 
             map(.value + {tag: (
-                if .value.tag | test("^[a-zA-Z0-9]+-[0-9]+$") 
+                if (.value.tag | type == "string") and (.value.tag | test("^[a-zA-Z0-9]+-[0-9]+$")) 
                 then ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring) + (if $cc != "" then " " + ($cc | explode | map(. + 127397) | implode) else "" end))
                 else .value.tag 
                 end
@@ -119,8 +119,8 @@ push_admin_nodes() {
         # 5. Gói payload
         local payload=$(jq -n --arg action "report_inbounds" --argjson inb "$admin_nodes" '{action: $action, inbounds: $inb}')
         
-        # 6. Gửi lên API
-        local response=$(curl -s -X POST "${API_DOMAIN}" \
+        # 6. Gửi lên API (Thêm timeout 10 giây để tránh treo khi API server mất kết nối)
+        local response=$(curl -s -m 10 -X POST "${API_DOMAIN}" \
              -H "X-API-Port: ${API_PORT}" \
              -H "X-API-Token: ${API_TOKEN}" \
              -H "Content-Type: application/json" \
