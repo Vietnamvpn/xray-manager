@@ -224,11 +224,14 @@ add_node() {
         read -p "$(echo -e "${CYAN}Nhập tên Tag cho node (để trống sẽ là ${protocol}-${port}): ${NC}")" input_tag
         local tag="${input_tag:-${protocol}-${port}}"
 
+        # Nhập tên file SSL tùy chỉnh
+        read -p "$(echo -e "${CYAN}Nhập tên file chứng chỉ (.crt) để trống mặc định là server.crt: ${NC}")" input_cert
+        read -p "$(echo -e "${CYAN}Nhập tên file key (.key) để trống mặc định là server.key: ${NC}")" input_key
 
     # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
     local obfs_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
-    local cert_file="${XRAY_CONFIG_DIR}/certs/server.crt"
-    local key_file="${XRAY_CONFIG_DIR}/certs/server.key"
+    local cert_file="${XRAY_CONFIG_DIR}/certs/${input_cert:-server.crt}"
+    local key_file="${XRAY_CONFIG_DIR}/certs/${input_key:-server.key}"
 
     # 2. Đóng gói Node (Tích hợp động theo từng giao thức: TLS, WS, Reality, Hysteria)
     if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" \
