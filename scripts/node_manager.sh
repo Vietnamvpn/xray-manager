@@ -98,7 +98,6 @@ add_node() {
             echo -e "\n${GREEN}Các Transport Khả Dụng Cho $protocol :${NC}"
             
             # Tự động quét file .json trong thư mục tương ứng
-            # Ví dụ: templates/vless/ws.json -> ['ws']
             local options=($(ls "$template_path"/*.json 2>/dev/null | xargs -n 1 basename | sed 's/\.json//'))
             
             if [ ${#options[@]} -eq 0 ]; then
@@ -136,7 +135,7 @@ add_node() {
 
         echo -e "\n${YELLOW}Nhập Thông Số Node:${NC}"
         
-        # 2.1 - TỰ ĐỘNG ĐIỀN DOMAIN/IP (Đã nâng cấp điều kiện bắt buộc nhập cho WS)
+        # 2.1 - TỰ ĐỘNG ĐIỀN DOMAIN/IP (Đã cập nhật tính năng chọn IPv4 hoặc IPv6)
         local domain_or_ip=""
         while true; do
             read -p "Nhập domain để trống sẽ là ip vps: " input_domain
@@ -145,8 +144,15 @@ add_node() {
                     echo -e "${RED}[LỖI] Đối với Node WS, Domain là BẮT BUỘC và không được để trống!${NC}"
                     continue
                 fi
-                domain_or_ip=$(curl -s --max-time 3 https://api.ipify.org || echo "127.0.0.1")
-                echo -e "${BLUE}-> Đã tự điền ip: $domain_or_ip${NC}"
+                
+                read -p "$(echo -e "${CYAN}Chọn loại IP VPS (1: IPv4, 2: IPv6) [Mặc định: 1]: ${NC}")" ip_choice
+                if [ "$ip_choice" == "2" ]; then
+                    domain_or_ip=$(curl -s -6 --max-time 3 https://api64.ipify.org || echo "::1")
+                    echo -e "${BLUE}-> Đã tự điền IPv6: $domain_or_ip${NC}"
+                else
+                    domain_or_ip=$(curl -s -4 --max-time 3 https://api.ipify.org || echo "127.0.0.1")
+                    echo -e "${BLUE}-> Đã tự điền IPv4: $domain_or_ip${NC}"
+                fi
                 break
             else
                 domain_or_ip="$input_domain"
@@ -174,7 +180,7 @@ add_node() {
             fi
         fi
 
-        # 2.3 - TỰ ĐỘNG ĐIỀN SNI DÀNH CHO TLS/REALITY (Đã nâng cấp điều kiện WS)
+        # 2.3 - TỰ ĐỘNG ĐIỀN SNI DÀNH CHO TLS/REALITY
         local sni=""
         while true; do
             read -p "Nhập sni để trống hệ thống lấy ngẫu nhiên: " input_sni
@@ -206,9 +212,6 @@ add_node() {
             
             if [ -f "$xray_bin" ]; then
                 local keys=$($xray_bin x25519 2>/dev/null)
-                # Cập nhật logic lọc theo format thực tế:
-                # PrivateKey: <key>
-                # Password (PublicKey): <key>
                 private_key=$(echo "$keys" | grep "PrivateKey:" | awk '{print $2}')
                 public_key=$(echo "$keys" | grep "PublicKey" | awk '{print $NF}')
             fi
@@ -220,63 +223,61 @@ add_node() {
             fi
         fi
 
-        # Thay thế dòng: local tag="${protocol}-${port}" bằng đoạn này:
         read -p "$(echo -e "${CYAN}Nhập tên Tag cho node (để trống sẽ là ${protocol}-${port}): ${NC}")" input_tag
         local tag="${input_tag:-${protocol}-${port}}"
 
-        # Nhập tên file SSL tùy chỉnh
         read -p "$(echo -e "${CYAN}Nhập tên file chứng chỉ (.crt) để trống mặc định là server.crt: ${NC}")" input_cert
         read -p "$(echo -e "${CYAN}Nhập tên file key (.key) để trống mặc định là server.key: ${NC}")" input_key
 
-    # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
-    local obfs_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
-    local cert_file="${XRAY_CONFIG_DIR}/certs/${input_cert:-server.crt}"
-    local key_file="${XRAY_CONFIG_DIR}/certs/${input_key:-server.key}"
+        # 1. Tự động tạo mật khẩu OBFS và đường dẫn chứng chỉ
+        local obfs_pass=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+        local cert_file="${XRAY_CONFIG_DIR}/certs/${input_cert:-server.crt}"
+        local key_file="${XRAY_CONFIG_DIR}/certs/${input_key:-server.key}"
 
-    # 2. Đóng gói Node (Tích hợp động theo từng giao thức: TLS, WS, Reality, Hysteria)
-    if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" \
-             --arg priv "$private_key" --arg pub "$public_key" \
-             --arg obfs "$obfs_pass" \
-             --arg cert "$cert_file" --arg key "$key_file" \
-             --arg domain "$domain_or_ip" '
-            (if has("domain") then .domain = $domain else . end) |
-            .port = ($p|tonumber) | 
-            .tag = $t | 
-            (if $pub != "" then .publicKey = $pub else . end) |
-            
-            (if (.streamSettings.security == "tls") or (.streamSettings.tlsSettings != null) then 
-                .streamSettings.tlsSettings.certificates = [{
-                    "certificateFile": $cert,
-                    "keyFile": $key
-                }] |
+        # 2. Đóng gói Node
+        if ! jq --arg p "$port" --arg t "$tag" --arg sni "$sni" \
+                 --arg priv "$private_key" --arg pub "$public_key" \
+                 --arg obfs "$obfs_pass" \
+                 --arg cert "$cert_file" --arg key "$key_file" \
+                 --arg domain "$domain_or_ip" '
+                (if has("domain") then .domain = $domain else . end) |
+                .port = ($p|tonumber) | 
+                .tag = $t | 
+                (if $pub != "" then .publicKey = $pub else . end) |
                 
-                (if .protocol == "vmess" then
-                    del(.streamSettings.tlsSettings.serverName)
-                else
-                    .streamSettings.tlsSettings.serverName = $sni
-                end)
-             else . end) |
-             
-            (if .streamSettings.wsSettings != null then 
-                .streamSettings.wsSettings.headers.Host = $sni
-             else . end) |
-             
-            (if .streamSettings.realitySettings then 
-                .streamSettings.realitySettings.dest = ($sni + ":443") |
-                .streamSettings.realitySettings.serverName = $sni |
-                .streamSettings.realitySettings.serverNames = [$sni] | 
-                (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
-             else . end) |
-             
-            (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .streamSettings.finalmask then
-                .streamSettings.finalmask.udp[0].settings.password = $obfs
-             else . end)
-        ' "$tpl_file" > "$single_file" 2>/dev/null; then
-            echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
-            sleep 3
-            continue
-    fi
-    jq --slurpfile n "$single_file" '. += $n' "$sess_file" > "${sess_file}.tmp" && mv "${sess_file}.tmp" "$sess_file"
+                (if (.streamSettings.security == "tls") or (.streamSettings.tlsSettings != null) then 
+                    .streamSettings.tlsSettings.certificates = [{
+                        "certificateFile": $cert,
+                        "keyFile": $key
+                    }] |
+                    
+                    (if .protocol == "vmess" then
+                        del(.streamSettings.tlsSettings.serverName)
+                    else
+                        .streamSettings.tlsSettings.serverName = $sni
+                    end)
+                 else . end) |
+                 
+                (if .streamSettings.wsSettings != null then 
+                    .streamSettings.wsSettings.headers.Host = $sni
+                 else . end) |
+                 
+                (if .streamSettings.realitySettings then 
+                    .streamSettings.realitySettings.dest = ($sni + ":443") |
+                    .streamSettings.realitySettings.serverName = $sni |
+                    .streamSettings.realitySettings.serverNames = [$sni] | 
+                    (if $priv != "" then .streamSettings.realitySettings.privateKey = $priv else . end)
+                 else . end) |
+                 
+                (if (.protocol == "hysteria2" or .protocol == "hy2" or .protocol == "hysteria") and .streamSettings.finalmask then
+                    .streamSettings.finalmask.udp[0].settings.password = $obfs
+                 else . end)
+            ' "$tpl_file" > "$single_file" 2>/dev/null; then
+                echo -e "${RED}[LỖI CÚ PHÁP] Không thể biên dịch JSON. Template bị lỗi!${NC}"
+                sleep 3
+                continue
+        fi
+        jq --slurpfile n "$single_file" '. += $n' "$sess_file" > "${sess_file}.tmp" && mv "${sess_file}.tmp" "$sess_file"
 
         echo -e "${GREEN}[OK] Đã cấu hình xong Node: $tag${NC}"
         echo ""
@@ -290,7 +291,6 @@ add_node() {
     USER_DB="${INSTALL_DIR}/data/users.json"
     [ ! -f "$USER_DB" ] && echo "[]" > "$USER_DB"
     
-    # Kiểm tra xem có node nào trong phiên tạo không
     local count=$(jq '. | length' "$sess_file" 2>/dev/null || echo 0)
     if [ "$count" -eq 0 ]; then return; fi
 
@@ -303,15 +303,12 @@ add_node() {
     local users_json=$(cat "$USER_DB")
     local user_count=$(echo "$users_json" | jq '. | length')
 
-    # TRƯỜNG HỢP 1: ĐỂ TRỐNG -> GÁN TẤT CẢ USER HOẶC LƯU CẤU HÌNH RỖNG
     if [ -z "$username" ]; then
         if [ "$user_count" -eq 0 ]; then
             echo -e "${YELLOW}-> Hệ thống chưa có User. Node sẽ được lưu với cấu hình mặc định (chưa gán user).${NC}"
             cp "$sess_file" "$final_file"
         else
             echo -e "${BLUE}-> Đang gán TẤT CẢ $user_count user vào các node...${NC}"
-            
-            # Tự động nhận diện cấu trúc mảng trong template để map dữ liệu chuẩn
             jq --argjson us "$users_json" '
                 map(
                     if .settings.users != null then
@@ -330,8 +327,6 @@ add_node() {
                 )
             ' "$sess_file" > "$final_file"
         fi
-
-    # TRƯỜNG HỢP 2: NHẬP TÊN -> GÁN CỤ THỂ
     else
         local user_data=$(echo "$users_json" | jq -c --arg e "$username" '.[] | select(.email == $e)')
         local user_cred=""
@@ -345,7 +340,6 @@ add_node() {
             echo -e "${BLUE}-> Đang sử dụng User '\''$username'\''.${NC}"
         fi
 
-        # Tự động nhận diện cấu trúc mảng trong template để gán 1 user cụ thể
         jq --arg cred "$user_cred" --arg email "$username" '
             map(
                 if .settings.users != null then
@@ -365,7 +359,6 @@ add_node() {
         ' "$sess_file" > "$final_file"
     fi
 
-    # LƯU VÀO DATABASE CHÍNH
     (
         flock -x 200
         if ! jq --slurpfile new_nodes "$final_file" '. += $new_nodes[0]' "$NODE_DB" > "${NODE_DB}.tmp" 2>/dev/null; then
@@ -383,12 +376,8 @@ add_node() {
     
     rm -f "$sess_file" "$single_file" "$final_file"
     
-    # KÍCH HOẠT CẤU HÌNH (Lúc này Node đã chắc chắn được lưu an toàn)
     apply_config
     
-    # =================================================================
-    # BƯỚC MỚI: HỎI CHUYỂN MENU NẾU CHƯA CÓ USER NÀO
-    # =================================================================
     if [ -z "$username" ] && [ "$user_count" -eq 0 ]; then
         echo -e "\n${YELLOW}[THÔNG BÁO] Node đã được tạo thành công, nhưng hệ thống vẫn chưa có User nào để kết nối!${NC}"
         read -p "Bạn có muốn chuyển sang Menu Quản Lý User để thêm mới không? (y/n - để trống sẽ quay lại menu Node): " ask_user_menu
