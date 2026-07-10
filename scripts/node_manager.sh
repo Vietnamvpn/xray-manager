@@ -428,22 +428,49 @@ update_node() {
     local old_sni=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.serverName // .streamSettings.realitySettings.serverName // "N/A"')
     local is_ws=$(echo "$current_node" | jq -e '.streamSettings.wsSettings != null' >/dev/null 2>&1 && echo "true" || echo "false")
     local old_tag=$(echo "$current_node" | jq -r '.tag')
+    
+    # Lấy đường dẫn file SSL hiện tại
+    local old_cert=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.certificates[0].certificateFile? // "N/A"')
+    local old_key=$(echo "$current_node" | jq -r '.streamSettings.tlsSettings.certificates[0].keyFile? // "N/A"')
 
     echo -e "${BLUE}Đang cập nhật Node Port:${NC}${YELLOW} $target_port${NC}"
     echo -e "Domain hiện tại: ${YELLOW}$old_domain${NC}"
     echo -e "SNI hiện tại: ${YELLOW}$old_sni${NC}"
     echo -e "Tag hiện tại: ${YELLOW}$old_tag${NC}"
+    echo -e "File Cert hiện tại: ${YELLOW}$old_cert${NC}"
+    echo -e "File Key hiện tại: ${YELLOW}$old_key${NC}"
     echo -e "(Để trống nếu không muốn đổi giá trị cũ)"
 
     read -p "Nhập Domain mới: " new_domain
     read -p "Nhập Port mới: " new_port
     read -p "Nhập SNI mới: " new_sni
     read -p "$(echo -e "${CYAN}Nhập Tag mới:${NC}")" new_tag
+    read -p "$(echo -e "${CYAN}Nhập tên/đường dẫn file chứng chỉ (.crt) mới:${NC} ")" new_cert
+    read -p "$(echo -e "${CYAN}Nhập tên/đường dẫn file key (.key) mới:${NC} ")" new_key
 
     local final_domain="${new_domain:-$old_domain}"
     local final_port="${new_port:-$target_port}"
     local final_sni="${new_sni:-$old_sni}"
     local final_tag="${new_tag:-$old_tag}"
+    
+    # Xử lý đường dẫn SSL (nếu chỉ nhập tên file sẽ tự động thêm thư mục mặc định)
+    local final_cert="$old_cert"
+    if [ -n "$new_cert" ]; then
+        if [[ "$new_cert" == /* ]]; then
+            final_cert="$new_cert"
+        else
+            final_cert="${XRAY_CONFIG_DIR}/certs/${new_cert}"
+        fi
+    fi
+
+    local final_key="$old_key"
+    if [ -n "$new_key" ]; then
+        if [[ "$new_key" == /* ]]; then
+            final_key="$new_key"
+        else
+            final_key="${XRAY_CONFIG_DIR}/certs/${new_key}"
+        fi
+    fi
 
     # Kiểm tra điều kiện bắt buộc đối với WS
     if [ "$is_ws" == "true" ] && [ "$final_domain" != "$final_sni" ]; then
@@ -462,17 +489,25 @@ update_node() {
         fi
     fi
 
-    # Thực hiện Update (Chỉ update các trường cần thiết, KHÔNG thêm .domain nếu không tồn tại)
+    # Thực hiện Update (Cập nhật bao gồm cả cấu hình chứng chỉ SSL)
     if jq --arg p "$target_port" \
           --arg np "$final_port" \
           --arg s "$final_sni" \
           --arg d "$final_domain" \
-          --arg t "$final_tag" '
+          --arg t "$final_tag" \
+          --arg cert "$final_cert" \
+          --arg key "$final_key" '
         map(if .port|tostring == $p then
             (if has("domain") then .domain = $d else . end) |
             .port = ($np|tonumber) |
             .tag = $t |
-            (if .streamSettings.tlsSettings then .streamSettings.tlsSettings.serverName = $s else . end) |
+            (if .streamSettings.tlsSettings then 
+                .streamSettings.tlsSettings.serverName = $s |
+                (if .streamSettings.tlsSettings.certificates != null and $cert != "N/A" and $key != "N/A" then
+                    .streamSettings.tlsSettings.certificates[0].certificateFile = $cert |
+                    .streamSettings.tlsSettings.certificates[0].keyFile = $key
+                else . end)
+             else . end) |
             (if .streamSettings.wsSettings then .streamSettings.wsSettings.headers.Host = $s else . end) |
             (if .streamSettings.realitySettings then 
                 .streamSettings.realitySettings.dest = ($s + ":443") |
