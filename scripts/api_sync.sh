@@ -109,7 +109,7 @@ push_admin_nodes() {
             map(. as $inb | $inb + {inbound_status: ($statuses[.port|tostring] // "offline")}) |
             to_entries | 
             map(.value + {tag: (
-                if (.value.tag | type == "string") and (.value.tag | test("^[a-zA-Z0-9]+-[0-9]+$")) 
+                if (.value.tag | type == "string") and (.value.tag | test("^(trojan|vmess|vless|hysteria2)-[0-9]+$")) 
                 then ($country + "-" + (if (.key + 1) < 10 then "0" else "" end) + (.key + 1 | tostring) + (if $cc != "" then " " + ($cc | explode | map(. + 127397) | implode) else "" end))
                 else .value.tag 
                 end
