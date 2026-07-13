@@ -296,7 +296,7 @@ show_menu() {
     echo -e "2. ${CYAN}Quản Lý Node Sever${NC}   |   8. ${CYAN}Bật/Tắt BBR${NC}"
     echo -e "3. ${CYAN}Quản Lý SSL${NC}          |   9. ${CYAN}Tạo Bộ Nhớ Ảo Swap${NC}"
     echo -e "4. ${CYAN}Đồng Bộ API${NC}          |   10. ${CYAN}Xem Trạng Thái VPS${NC}"
-    echo -e "5. ${CYAN}Cập Nhật Mã Nguồn${NC}    |   11. ${CYAN}Xem Log Xray Trực Tiếp${NC}"
+    echo -e "5. ${CYAN}Cập Nhật Mã Nguồn${NC}    |   11. ${CYAN}Xem Log Xray${NC}"
     echo -e "6. ${RED}Xóa Tất Cả Mã Nguồn${NC}  |   12. ${CYAN}Quản Lý Định Tuyến${NC}"
     echo -e "0. Thoát                |"
     echo -e "${BLUE}======================================================================${NC}"
