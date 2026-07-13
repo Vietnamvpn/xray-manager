@@ -244,9 +244,33 @@ check_vps() {
 
 # 11. Xem log Xray trực tiếp
 view_xray_logs() {
-    echo -e "${YELLOW}Đang hiển thị log Xray... (Nhấn Ctrl+C để thoát)${NC}"
-    # Sử dụng journalctl để xem log service
-    journalctl -u xray -f
+    echo -e "${YELLOW}Chọn loại log Xray bạn muốn xem:${NC}"
+    echo "1) Log service của hệ thống (journalctl)"
+    echo "2) Log truy cập (access.log)"
+    echo "3) Log lỗi (error.log)"
+    echo "0) Thoát"
+    read -p "Nhập lựa chọn của bạn (0-3): " log_choice
+
+    case $log_choice in
+        1)
+            echo -e "${YELLOW}Đang hiển thị log service Xray... (Nhấn Ctrl+C để thoát)${NC}"
+            journalctl -u xray -f
+            ;;
+        2)
+            echo -e "${YELLOW}Đang hiển thị log truy cập Xray... (Nhấn Ctrl+C để thoát)${NC}"
+            tail -f /var/log/xray/access.log
+            ;;
+        3)
+            echo -e "${YELLOW}Đang hiển thị log lỗi Xray... (Nhấn Ctrl+C để thoát)${NC}"
+            tail -f /var/log/xray/error.log
+            ;;
+        0)
+            echo "Đã thoát xem log."
+            ;;
+        *)
+            echo "Lựa chọn không hợp lệ."
+            ;;
+    esac
 }
 
 show_menu() {
