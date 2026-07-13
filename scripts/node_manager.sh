@@ -280,6 +280,16 @@ add_node() {
 
         echo -e "${GREEN}[OK] Đã cấu hình xong Node: $tag${NC}"
         echo ""
+        # TỰ ĐỘNG MỞ CỔNG TƯỜNG LỬA (TCP VÀ UDP)
+        if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+            ufw allow "${port}/tcp" >/dev/null 2>&1
+            ufw allow "${port}/udp" >/dev/null 2>&1
+        elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld; then
+            firewall-cmd --permanent --add-port="${port}/tcp" >/dev/null 2>&1
+            firewall-cmd --permanent --add-port="${port}/udp" >/dev/null 2>&1
+            firewall-cmd --reload >/dev/null 2>&1
+        fi
+        
         read -p "Bạn có muốn thêm tiếp 1 Node nữa không? (y/n): " confirm
         if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then break; fi
     done
@@ -517,6 +527,16 @@ update_node() {
         else . end)
     ' "$NODE_DB" > "${NODE_DB}.tmp" && mv "${NODE_DB}.tmp" "$NODE_DB"; then
         echo -e "${GREEN}Đã cập nhật Node $target_port -> $final_port${NC}"
+        # --- THÊM ĐOẠN NÀY VÀO ---
+        if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+            ufw allow "${final_port}/tcp" >/dev/null 2>&1
+            ufw allow "${final_port}/udp" >/dev/null 2>&1
+        elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld; then
+            firewall-cmd --permanent --add-port="${final_port}/tcp" >/dev/null 2>&1
+            firewall-cmd --permanent --add-port="${final_port}/udp" >/dev/null 2>&1
+            firewall-cmd --reload >/dev/null 2>&1
+        fi
+        # --------------------------
     else
         echo -e "${RED}[LỖI] Cập nhật file JSON thất bại.${NC}"
         rm -f "${NODE_DB}.tmp"
