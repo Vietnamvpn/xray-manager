@@ -45,14 +45,30 @@ if [ ! -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config.conf" ]; then
 
     # Kiểm tra và tải môi trường phụ thuộc
     if [ -f /etc/debian_version ]; then
-        echo -e "[INFO] Hệ điều hành: Debian/Ubuntu. Đang tải môi trường..."
-        apt-get update -y && apt-get install -y git curl wget unzip jq uuid-runtime openssl
+        echo -e "[INFO] Hệ điều hành: Debian/Ubuntu. Đang cập nhật VPS, cài đặt tường lửa và môi trường..."
+        apt-get update -y && apt-get upgrade -y
+        apt-get install -y git curl wget unzip jq uuid-runtime openssl ufw
         if [ $? -ne 0 ]; then echo -e "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
+        
+        # Cấu hình và bật tường lửa UFW
+        ufw allow ssh
+        ufw allow 80/tcp
+        ufw allow 443/tcp
+        ufw --force enable
     elif [ -f /etc/redhat-release ]; then
-        echo -e "[INFO] Hệ điều hành: CentOS/RedHat. Đang tải môi trường..."
+        echo -e "[INFO] Hệ điều hành: CentOS/RedHat. Đang cập nhật VPS, cài đặt tường lửa và môi trường..."
+        yum update -y
         yum install -y epel-release
-        yum install -y git curl wget unzip jq util-linux openssl
+        yum install -y git curl wget unzip jq util-linux openssl firewalld
         if [ $? -ne 0 ]; then echo -e "[LỖI] Không thể cài đặt các gói phụ thuộc."; exit 1; fi
+        
+        # Cấu hình và bật tường lửa Firewalld
+        systemctl start firewalld
+        systemctl enable firewalld
+        firewall-cmd --permanent --add-service=ssh
+        firewall-cmd --permanent --add-port=80/tcp
+        firewall-cmd --permanent --add-port=443/tcp
+        firewall-cmd --reload
     else
         echo -e "[LỖI] Hệ điều hành không được hỗ trợ. Vui lòng sử dụng Ubuntu, Debian hoặc CentOS."
         exit 1
