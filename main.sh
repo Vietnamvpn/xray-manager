@@ -97,10 +97,10 @@ delete_all_source() {
 
 # 7. Điều khiển Xray
 manage_xray() {
-    echo -e "1. Khởi chạy Xray"
-    echo -e "2. Tắt Xray"
-    echo -e "3. Khởi động lại Xray"
-    echo -e "4. Xóa Xray Core"
+    echo -e "${YELLOW}1.${NC} Khởi chạy Xray"
+    echo -e "${YELLOW}2.${NC} Tắt Xray"
+    echo -e "${YELLOW}3.${NC} Khởi động lại Xray"
+    echo -e "${RED}4.${NC} Xóa Xray Core"
     read -p "Chọn: " sub_choice
     
     echo -e "\n${YELLOW}Đang thực hiện lệnh...${NC}"
@@ -132,8 +132,8 @@ manage_xray() {
 
 # 8. Bật/Tắt BBR
 toggle_bbr() {
-    echo -e "1. Bật BBR"
-    echo -e "2. Tắt BBR"
+    echo -e "${YELLOW}1.${NC} Bật BBR"
+    echo -e "${YELLOW}2.${NC} Tắt BBR"
     read -p "Chọn: " sub_choice
     
     # Lấy thuật toán kiểm soát nghẽn hiện tại của hệ thống
@@ -245,10 +245,10 @@ check_vps() {
 # 11. Xem log Xray trực tiếp
 view_xray_logs() {
     echo -e "${YELLOW}Chọn loại log Xray bạn muốn xem:${NC}"
-    echo "1) Log service của hệ thống (journalctl)"
-    echo "2) Log truy cập (access.log)"
-    echo "3) Log lỗi (error.log)"
-    echo "0) Thoát"
+    echo "${YELLOW}1)${NC} Log service của hệ thống (journalctl)"
+    echo "${YELLOW}2)${NC} Log truy cập (access.log)"
+    echo "${YELLOW}3)${NC} Log lỗi (error.log)"
+    echo "${RED}0)${NC} Thoát"
     read -p "Nhập lựa chọn của bạn (0-3): " log_choice
 
     case $log_choice in
